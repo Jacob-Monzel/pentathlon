@@ -27,9 +27,11 @@
   <button class="primary" id="save">Save</button>
   <button class="dangerbtn" id="del" hidden>Delete</button>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <script src="app.js"></script>
 <script>
-  Auth.guard();
+  boot(async () => {
   const p = new URLSearchParams(location.search);
   const date = p.get('date') || todayISO();
   const editId = p.get('id');
@@ -179,6 +181,7 @@
   }
 
   if (editId) { del.hidden=false; del.onclick=()=>{ if(confirm('Delete this activity?')){ deleteActivity(editId); backTo(); } }; }
+  });
 </script>
 </body>
 </html>

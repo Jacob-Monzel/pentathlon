@@ -35,9 +35,11 @@
   </div>
   <div class="addsports" id="addsports"></div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <script src="app.js"></script>
 <script>
-  Auth.guard();
+  boot(async () => {
   const date = new URLSearchParams(location.search).get('date') || todayISO();
   dayttl.textContent = prettyDate(date);
 
@@ -91,6 +93,7 @@
     `<button data-type="${t}">${ACT[t].emoji} ${ACT[t].label}</button>`).join('');
   addsports.querySelectorAll('button').forEach(b => b.onclick = () =>
     location.href = `activity.html?type=${b.dataset.type}&date=${date}`);
+  });
 </script>
 </body>
 </html>

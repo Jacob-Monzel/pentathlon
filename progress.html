@@ -26,9 +26,11 @@
   <div class="vol" id="vol"></div>
   <div class="links"><a href="index.html">Back</a></div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <script src="app.js"></script>
 <script>
-  Auth.guard();
+  boot(async () => {
   function spark(vals) {
     if (vals.length < 2) return '<span class="nospark">need 2+ sessions</span>';
     const w = 130, h = 34, mn = Math.min(...vals), mx = Math.max(...vals), rng = (mx - mn) || 1;
@@ -58,6 +60,7 @@
   vol.innerHTML = vols.map(v =>
     `<div class="vrow"><span class="vg">${v.group}</span><span class="vbarwrap"><span class="vbar" style="width:${Math.round(v.sets/maxV*100)}%"></span></span><span class="vn">${v.sets%1===0?v.sets:v.sets.toFixed(1)}</span></div>`
   ).join('');
+  });
 </script>
 </body>
 </html>

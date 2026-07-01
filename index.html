@@ -34,9 +34,11 @@
     <a href="#" id="out">Log out</a>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <script src="app.js"></script>
 <script>
-  Auth.guard();
+  boot(async () => {
   let offset = 0;
   const today = todayISO();
 
@@ -93,6 +95,7 @@
   next.onclick = () => { offset++; render(); };
   out.onclick = e => { e.preventDefault(); Auth.logout(); };
   render();
+  });
 </script>
 </body>
 </html>

@@ -77,30 +77,85 @@ const PROGRESS_LIFTS = [
   {k:'rdl', n:'Romanian deadlift'}, {k:'pullup', n:'Pull-up'},
 ];
 
-// ---- storage layer (swap for Supabase here) ----
-const Store = (() => {
-  const KEY = 'pentathlon_v2';
-  let persistent = true, mem = null;
-  try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); }
-  catch (e) { persistent = false; }
-  const def = () => ({ sessions:[], activities:[], episodes:[], draft:null, user:null, pwHash:null });
+// ---- Supabase client wrapper (configured via config.js) ----
+const Cloud = (() => {
+  let sb = null, user = null, inited = false;
   return {
-    persistent,
-    get() {
-      if (!persistent) return mem || (mem = def());
-      try { return Object.assign(def(), JSON.parse(localStorage.getItem(KEY)) || {}); }
-      catch (e) { return def(); }
+    get sb() { return sb; },
+    ready() { return !!sb; },
+    uid() { return user ? user.id : null; },
+    init() {
+      if (inited) return; inited = true;
+      const url = window.SUPA_URL, key = window.SUPA_KEY;
+      if (window.supabase && url && key && !/YOUR_|PASTE_/.test(url + key)) {
+        try { sb = window.supabase.createClient(url, key); } catch (e) { sb = null; }
+      }
     },
-    set(s) { if (!persistent) { mem = s; return; } try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} },
-    update(fn) { const s = this.get(); fn(s); this.set(s); return s; },
+    async session() {
+      if (!sb) return null;
+      const { data } = await sb.auth.getSession();
+      user = data.session ? data.session.user : null;
+      return data.session;
+    },
+    signIn(email, pw) { return sb.auth.signInWithPassword({ email, password: pw }); },
+    signUp(email, pw) { return sb.auth.signUp({ email, password: pw }); },
+    async signOut() { if (sb) await sb.auth.signOut(); },
   };
 })();
 
+// ---- storage: local-first cache, Supabase as the source of truth across devices ----
+const Store = (() => {
+  const KEY = 'pentathlon_v2', TS = 'pentathlon_v2_ts';
+  let persistent = true, mem = null;
+  try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); } catch (e) { persistent = false; }
+  const def = () => ({ sessions:[], activities:[], episodes:[], draft:null });
+
+  const readLocal = () => { if (!persistent) return mem || (mem = def());
+    try { return Object.assign(def(), JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { return def(); } };
+  const writeLocal = (s, ts) => { if (!persistent) { mem = s; return; }
+    try { localStorage.setItem(KEY, JSON.stringify(s)); localStorage.setItem(TS, ts || new Date().toISOString()); } catch (e) {} };
+  const localTs = () => { try { return localStorage.getItem(TS) || ''; } catch (e) { return ''; } };
+
+  let pushTimer = null;
+  async function push() {
+    if (!Cloud.ready()) return; const uid = Cloud.uid(); if (!uid) return;
+    try { await Cloud.sb.from('app_state').upsert({ user_id: uid, data: readLocal(), updated_at: localTs() || new Date().toISOString() }); } catch (e) {}
+  }
+
+  return {
+    def,
+    get() { return readLocal(); },
+    set(s) { writeLocal(s, new Date().toISOString()); clearTimeout(pushTimer); pushTimer = setTimeout(push, 600); },
+    update(fn) { const s = readLocal(); fn(s); this.set(s); return s; },
+    flush() { clearTimeout(pushTimer); return push(); },
+    async pull() {
+      if (!Cloud.ready()) return; const uid = Cloud.uid(); if (!uid) return;
+      let row = null;
+      try { const r = await Cloud.sb.from('app_state').select('data,updated_at').eq('user_id', uid).maybeSingle(); row = r.data; } catch (e) { return; }
+      const lts = localTs();
+      if (row && row.data) {
+        if (!lts || row.updated_at > lts) writeLocal(Object.assign(def(), row.data), row.updated_at);
+        else if (lts > row.updated_at) await push();
+      } else { await push(); }
+    },
+    clearLocal() { try { localStorage.removeItem(KEY); localStorage.removeItem(TS); } catch (e) {} mem = null; },
+  };
+})();
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) Store.flush(); });
+
 const Auth = {
-  isAuthed() { return !!Store.get().user; },
-  logout()   { Store.update(s => { s.user = null; }); location.href = 'login.html'; },
-  guard()    { if (!this.isAuthed()) location.replace('login.html'); },
+  async logout() { await Cloud.signOut(); Store.clearLocal(); location.href = 'login.html'; },
 };
+
+// gate + sync, then render the page. Falls back to local-only if Supabase isn't configured yet.
+async function boot(render) {
+  Cloud.init();
+  if (!Cloud.ready()) { render(); return; }
+  const session = await Cloud.session();
+  if (!session) { location.replace('login.html'); return; }
+  await Store.pull();
+  render();
+}
 
 // ---- helpers ----
 const isoOf = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
