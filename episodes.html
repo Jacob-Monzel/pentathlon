@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pentathlon">
+<meta name="theme-color" content="#EEF2F7">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>Pentathlon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="epform">
+    <input type="date" id="epDate">
+    <select id="epWhat">
+      <option value="">what flared…</option>
+      <option>Groin — left</option><option>Groin — right</option>
+      <option>Rotation / trunk</option><option>Hip — left</option><option>Hip — right</option><option>Other</option>
+    </select>
+    <input type="text" id="epCtx" placeholder="trigger / context (optional)">
+    <button id="epAdd" class="primary">Add</button>
+  </div>
+  <div id="epList"></div>
+  <div class="links"><a href="index.html">Back</a></div>
+</div>
+<script src="app.js"></script>
+<script>
+  Auth.guard();
+  epDate.value = todayISO();
+
+  function render() {
+    const eps = [...Store.get().episodes].sort((a,b) => a.date < b.date ? -1 : 1);
+    if (!eps.length) {
+      epList.innerHTML = '<div class="empty">Nothing logged — good.<br>The gap between episodes getting longer is the win.</div>';
+      return;
+    }
+    epList.innerHTML = '';
+    eps.reverse().forEach((e, idx) => {
+      const nxt = eps[idx + 1];
+      let gap = 'first', num = false;
+      if (nxt) { gap = Math.round((new Date(e.date) - new Date(nxt.date)) / 86400000); num = true; }
+      const row = document.createElement('div');
+      row.className = 'ep';
+      row.innerHTML = `<div class="gap">${gap}<span>${num?'days':''}</span></div>` +
+        `<div class="epb"><b>${e.what}</b><div class="d">${e.date}</div>${e.ctx?`<div class="c">${e.ctx}</div>`:''}</div>`;
+      epList.appendChild(row);
+    });
+  }
+
+  epAdd.onclick = () => {
+    const w = epWhat.value;
+    if (!w) { epWhat.focus(); return; }
+    Store.update(s => s.episodes.push({ id: Date.now(), date: epDate.value || todayISO(), what: w, ctx: epCtx.value.trim() }));
+    epWhat.value = ''; epCtx.value = '';
+    render();
+  };
+
+  render();
+</script>
+</body>
+</html>

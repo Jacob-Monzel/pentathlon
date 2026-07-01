@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pentathlon">
+<meta name="theme-color" content="#EEF2F7">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>Pentathlon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="page">
+  <div id="bwCard"></div>
+  <div class="section-label">Estimated 1RM</div>
+  <div id="oneRM"></div>
+  <div class="section-label">Weekly effective sets · secondary at ½</div>
+  <div class="vol" id="vol"></div>
+  <div class="links"><a href="index.html">Back</a></div>
+</div>
+<script src="app.js"></script>
+<script>
+  Auth.guard();
+  function spark(vals) {
+    if (vals.length < 2) return '<span class="nospark">need 2+ sessions</span>';
+    const w = 130, h = 34, mn = Math.min(...vals), mx = Math.max(...vals), rng = (mx - mn) || 1;
+    const pts = vals.map((v, i) => `${((i/(vals.length-1))*w).toFixed(1)},${(h-((v-mn)/rng)*h).toFixed(1)}`).join(' ');
+    return `<svg viewBox="0 0 ${w} ${h}" class="spark" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
+
+  const bwl = bodyweightLog();
+  if (bwl.length) {
+    const vals = bwl.map(x => x.bw), cur = vals[vals.length-1];
+    bwCard.innerHTML = `<div class="rm bw-card"><div class="rm-h"><span class="rm-n">Bodyweight</span><span class="rm-v">${cur}</span></div><div class="rm-spark">${spark(vals)}</div><div class="rm-meta">${vals.length} entries</div></div>`;
+  } else {
+    bwCard.innerHTML = `<div class="rm bw-card"><div class="rm-h"><span class="rm-n">Bodyweight</span><span class="rm-v off">—</span></div><div class="rm-meta">enter it at the top of a workout to start tracking</div></div>`;
+  }
+
+  let html = '';
+  PROGRESS_LIFTS.forEach(({k, n}) => {
+    const series = e1rmSeries(k), vals = series.map(x => x.v);
+    if (!vals.length) { html += `<div class="rm"><div class="rm-h"><span class="rm-n">${n}</span><span class="rm-v off">—</span></div><div class="rm-meta">no sets logged</div></div>`; return; }
+    const cur = vals[vals.length-1], best = Math.max(...vals), basis = series[series.length-1].basis;
+    const tag = k === 'pullup' ? ` <em>${basis === 'total' ? 'bw + added' : 'added'}</em>` : '';
+    html += `<div class="rm"><div class="rm-h"><span class="rm-n">${n}${tag}</span><span class="rm-v">${cur}</span></div><div class="rm-spark">${spark(vals)}</div><div class="rm-meta">est. 1RM · best ${best} · ${vals.length} sessions</div></div>`;
+  });
+  oneRM.innerHTML = html;
+
+  const vols = weeklyVolume(), maxV = Math.max(...vols.map(v => v.sets));
+  vol.innerHTML = vols.map(v =>
+    `<div class="vrow"><span class="vg">${v.group}</span><span class="vbarwrap"><span class="vbar" style="width:${Math.round(v.sets/maxV*100)}%"></span></span><span class="vn">${v.sets%1===0?v.sets:v.sets.toFixed(1)}</span></div>`
+  ).join('');
+</script>
+</body>
+</html>

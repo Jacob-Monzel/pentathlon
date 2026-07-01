@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pentathlon">
+<meta name="theme-color" content="#EEF2F7">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>Pentathlon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="center">
+  <div class="login">
+    <div class="mark">Pentathlon</div>
+    <input id="pass" type="password" placeholder="password" autocomplete="current-password" autocapitalize="off">
+    <button id="go" class="primary">Enter</button>
+    <div class="fineprint" id="note"></div>
+  </div>
+</div>
+<script src="app.js"></script>
+<script>
+  if (Auth.isAuthed()) location.replace('index.html');
+  const firstRun = !Store.get().pwHash;
+  document.getElementById('go').textContent = firstRun ? 'Set password' : 'Enter';
+  note.textContent = firstRun
+    ? 'Pick a password you’ll remember. It gates this device only.'
+    : (Store.persistent ? '' : 'Preview mode — storage is blocked here.');
+
+  async function hash(t) {
+    try {
+      const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
+      return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('');
+    } catch (e) { return 'plain:' + t; } // fallback for non-secure contexts
+  }
+  async function submit() {
+    const p = pass.value; if (!p) { pass.focus(); return; }
+    const h = await hash(p);
+    const cur = Store.get().pwHash;
+    if (!cur) { Store.update(s => { s.pwHash = h; s.user = { since: Date.now() }; }); location.href = 'index.html'; }
+    else if (h === cur) { Store.update(s => { s.user = { since: Date.now() }; }); location.href = 'index.html'; }
+    else { note.textContent = 'Wrong password'; pass.value = ''; pass.focus(); }
+  }
+  go.onclick = submit;
+  pass.addEventListener('keydown', ev => { if (ev.key === 'Enter') submit(); });
+</script>
+</body>
+</html>

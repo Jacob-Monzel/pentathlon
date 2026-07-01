@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pentathlon">
+<meta name="theme-color" content="#2F80ED">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>Pentathlon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="whead">
+  <button id="exit" class="exit">✕</button>
+  <div class="wtitle" id="wtitle"></div>
+  <div class="wclock" id="wclock">0:00</div>
+</div>
+<div class="bw-row">
+  <label>Bodyweight</label>
+  <input id="bw" inputmode="decimal" placeholder="—">
+  <span class="bw-unit">lbs</span>
+</div>
+<div class="wlist" id="wlist"></div>
+<div class="restbar" id="rest"><span class="rt">1:30</span> rest · tap to dismiss</div>
+<button class="finishbar" id="finish">Finish &amp; feedback</button>
+
+<div class="sheet" id="sheet">
+  <div class="sheet-in">
+    <div class="fq">Knee — how did it feel?</div>
+    <div class="kneerow" id="kneeScale"></div>
+    <div class="fq">Anything flare up?</div>
+    <div class="opts" id="flareOpts"></div>
+    <input type="text" id="fbNote" placeholder="note (optional)">
+    <div class="sheet-actions">
+      <button id="fbCancel" class="ghostbtn">Back</button>
+      <button id="fbSave" class="primary">Save workout</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  Auth.guard();
+  const params = new URLSearchParams(location.search);
+  const day = params.get('day') || 'w1';
+  const logDate = params.get('date') || todayISO();
+  const backToDay = () => location.href = 'day.html?date=' + logDate;
+  const plan = PROGRAM[day];
+  if (!plan) location.replace('index.html');
+  wtitle.textContent = plan.label;
+
+  const slots = plan.ex.map(e => ({ ...e, baseK: e.k, baseN: e.n }));
+  let draft = (() => { const d = Store.get().draft; return (d && d.day === day && d.date === logDate) ? d : { day, date: logDate, exercises: {} }; })();
+  const exState = k => (draft.exercises[k] = draft.exercises[k] || { sets: [] });
+  const save = () => Store.update(s => { s.draft = draft; });
+  const curSlot = k => slots.find(s => s.k === k);
+
+  // bodyweight
+  bw.value = draft.bodyweight || latestBodyweight() || '';
+  bw.oninput = () => { draft.bodyweight = bw.value; save(); };
+
+  function seedSlot(slot) {
+    const st = exState(slot.k);
+    if (st.sets.length) return;
+    const sg = suggest(slot.k, slot);
+    st.sugg = sg || null;
+    const n = (prevSets(day, slot.k) || []).length || slot.sets;
+    for (let i = 0; i < n; i++) {
+      let w = '';
+      if (slot.t === 'top' || slot.t === 'pullup') w = i === 0 ? (sg ? sg.w : '') : '';
+      else w = sg ? sg.w : '';
+      st.sets.push({ w: w === 0 ? '' : w, r: '', rpe: '', done: false, touched: false });
+    }
+  }
+  slots.forEach(seedSlot); save();
+
+  const hasRpe = ex => ex.t === 'top' || ex.t === 'pullup' || !!ex.rpe;
+  function meta(ex) {
+    let s;
+    if (ex.t === 'top') s = `work to ${ex.reps} @ RPE ${ex.rpe} · then back-offs`;
+    else if (ex.t === 'pullup') s = `top set ${ex.reps} · then back-offs`;
+    else { s = `${ex.sets}×${ex.reps}`; if (ex.rpe) s += ` @ RPE ${ex.rpe}`; }
+    if (ex.tempo) s += ` · ${ex.tempo}`;
+    if (ex.cue) s += ` · ${ex.cue}`;
+    return s;
+  }
+  function prevLine(slot) {
+    const ps = prevSets(day, slot.k);
+    if (!ps || !ps.length) return 'no history yet';
+    return 'last · ' + ps.map(s => `${s.w||0}×${s.r||0}`).join(', ');
+  }
+
+  function render() {
+    wlist.innerHTML = '';
+    slots.forEach((slot, idx) => {
+      const st = exState(slot.k);
+      const sg = st.sugg;
+      const sgTxt = (sg && sg.w) ? `suggested ${sg.w}${sg.tag && sg.tag !== 'same' && sg.tag !== 'hold' ? ' · ' + sg.tag : ''}` : '';
+      let rows = `<div class="seth"><span>set</span><span>weight</span><span>reps</span>${hasRpe(slot)?'<span>rpe</span>':''}<span></span></div>`;
+      st.sets.forEach((set, i) => {
+        rows += `<div class="setrow" data-k="${slot.k}" data-i="${i}">
+          <span class="setn">${i+1}</span>
+          <input class="sw" inputmode="numeric" value="${set.w}">
+          <input class="sr" inputmode="numeric" value="${set.r}" placeholder="${slot.reps.replace(/ \/ side/,'')}">
+          ${hasRpe(slot)?`<input class="srpe" inputmode="numeric" value="${set.rpe}" placeholder="${i===0&&slot.rpe?slot.rpe:''}">`:''}
+          <button class="chk ${set.done?'on':''}">✓</button>
+        </div>`;
+      });
+      const opts = [{k:slot.baseK,n:slot.baseN}, ...(slot.alts||[])].filter(o => o.k !== slot.k);
+      const swapMenu = `<div class="swapmenu" id="sm-${idx}" hidden>` +
+        opts.map(o => `<button data-idx="${idx}" data-k="${o.k}" data-n="${o.n}">${o.n}</button>`).join('') + `</div>`;
+      const card = document.createElement('div');
+      card.className = 'exc';
+      card.innerHTML =
+        `<div class="exn-row"><div class="exn">${slot.n}</div><div class="exn-btns">${CUES[slot.k]?`<button class="infobtn" data-idx="${idx}">how</button>`:''}<button class="swapbtn" data-idx="${idx}">swap</button></div></div>
+         ${CUES[slot.k]?`<div class="cuebox" id="cue-${idx}" hidden><ul>${CUES[slot.k].map(c=>`<li>${c}</li>`).join('')}</ul></div>`:''}
+         ${swapMenu}
+         <div class="exmeta">${meta(slot)}</div>
+         <div class="prev">${prevLine(slot)}${sgTxt?` · <b>${sgTxt}</b>`:''}</div>
+         <div class="sets">${rows}</div>
+         <div class="exfoot"><button class="addset" data-k="${slot.k}">+ set</button><button class="rmset" data-k="${slot.k}">− set</button>${(slot.t==='top'||slot.t==='pullup')?`<span class="boff" id="boff-${slot.k}"></span>`:''}</div>`;
+      wlist.appendChild(card);
+    });
+    wire();
+    slots.forEach(s => { if (s.t === 'top') refillBackoff(s.k); else if (s.t === 'pullup') pullupHint(s.k); });
+  }
+
+  function wire() {
+    wlist.querySelectorAll('.setrow').forEach(row => {
+      const k = row.dataset.k, i = +row.dataset.i;
+      const set = exState(k).sets[i];
+      const sw = row.querySelector('.sw'), sr = row.querySelector('.sr'),
+            srpe = row.querySelector('.srpe'), chk = row.querySelector('.chk');
+      sw.oninput = () => { set.w = sw.value; set.touched = true; if (i === 0 && curSlot(k).t === 'top') refillBackoff(k); save(); };
+      sr.oninput = () => { set.r = sr.value; set.touched = true; save(); };
+      if (srpe) srpe.oninput = () => { set.rpe = srpe.value; set.touched = true; save(); };
+      chk.onclick = () => {
+        set.done = !set.done;
+        if (set.done) { set.touched = true; if (sw.value) set.w = sw.value; if (sr.value) set.r = sr.value; startRest(); }
+        chk.classList.toggle('on', set.done); save();
+      };
+    });
+    wlist.querySelectorAll('.addset').forEach(b => b.onclick = () => {
+      exState(b.dataset.k).sets.push({ w:'', r:'', rpe:'', done:false, touched:false }); save(); render();
+    });
+    wlist.querySelectorAll('.rmset').forEach(b => b.onclick = () => {
+      const st = exState(b.dataset.k);
+      if (st.sets.length > 1) { st.sets.pop(); save(); render(); }
+    });
+    wlist.querySelectorAll('.infobtn').forEach(b => b.onclick = () => {
+      const c = document.getElementById('cue-' + b.dataset.idx); if (c) c.hidden = !c.hidden;
+    });
+    wlist.querySelectorAll('.swapbtn').forEach(b => b.onclick = () => {
+      const m = document.getElementById('sm-' + b.dataset.idx); if (m) m.hidden = !m.hidden;
+    });
+    wlist.querySelectorAll('.swapmenu button').forEach(b => b.onclick = () => {
+      const idx = +b.dataset.idx, slot = slots[idx], oldK = slot.k;
+      if (b.dataset.k !== oldK) { delete draft.exercises[oldK]; slot.k = b.dataset.k; slot.n = b.dataset.n; seedSlot(slot); }
+      save(); render();
+    });
+  }
+
+  function refillBackoff(k) {
+    const st = exState(k), top = st.sets[0], w = +top.w;
+    const el = document.getElementById('boff-' + k);
+    if (!w) { if (el) el.textContent = ''; return; }
+    const b = round5(w * 0.9);
+    for (let i = 1; i < st.sets.length; i++) {
+      if (!st.sets[i].touched) {
+        st.sets[i].w = b;
+        const row = wlist.querySelector(`.setrow[data-k="${k}"][data-i="${i}"]`);
+        if (row) row.querySelector('.sw').value = b;
+      }
+    }
+    if (el) el.textContent = `↳ back-offs ${b}`;
+    save();
+  }
+  function pullupHint(k) { const el = document.getElementById('boff-' + k); if (el) el.textContent = '↳ back-offs: same or a touch lighter'; }
+
+  let restInt = null;
+  const fmtT = s => `${Math.floor(s/60)}:${String(Math.max(0,s%60)).padStart(2,'0')}`;
+  function startRest(sec = 90) {
+    let t = sec; clearInterval(restInt);
+    rest.classList.add('on'); rest.querySelector('.rt').textContent = fmtT(t);
+    restInt = setInterval(() => { t--; rest.querySelector('.rt').textContent = fmtT(t); if (t <= 0) { clearInterval(restInt); rest.classList.remove('on'); } }, 1000);
+  }
+  rest.onclick = () => { clearInterval(restInt); rest.classList.remove('on'); };
+
+  const t0 = Date.now();
+  setInterval(() => { wclock.textContent = fmtT(Math.floor((Date.now()-t0)/1000)); }, 1000);
+
+  let kneeVal = null, flareVal = 'None';
+  kneeScale.innerHTML = [0,1,2,3,4,5,6,7,8,9,10].map(v => `<button data-v="${v}">${v}</button>`).join('');
+  kneeScale.querySelectorAll('button').forEach(b => b.onclick = () => {
+    kneeScale.querySelectorAll('button').forEach(x => x.classList.remove('sel','hi'));
+    b.classList.add('sel'); if (+b.dataset.v >= 6) b.classList.add('hi'); kneeVal = +b.dataset.v;
+  });
+  const flares = ['None','Groin L','Groin R','Rotation','Hip L','Hip R','Other'];
+  flareOpts.innerHTML = flares.map(f => `<button data-f="${f}" class="${f==='None'?'sel':''}">${f}</button>`).join('');
+  flareOpts.querySelectorAll('button').forEach(b => b.onclick = () => {
+    flareOpts.querySelectorAll('button').forEach(x => x.classList.remove('sel'));
+    b.classList.add('sel'); flareVal = b.dataset.f;
+  });
+
+  exit.onclick = backToDay;
+  finish.onclick = () => sheet.classList.add('on');
+  fbCancel.onclick = () => sheet.classList.remove('on');
+  fbSave.onclick = () => {
+    const exercises = {};
+    slots.forEach(slot => {
+      const sets = exState(slot.k).sets.filter(s => s.touched && (s.w !== '' || s.r !== ''))
+        .map(s => ({ w: s.w, r: s.r, ...(s.rpe !== '' ? { rpe: s.rpe } : {}), ...(slot.added ? { added: true } : {}) }));
+      if (sets.length) exercises[slot.k] = { sets };
+    });
+    const note = fbNote.value.trim();
+    Store.update(s => {
+      s.sessions.push({ id: Date.now(), day, date: logDate, bodyweight: draft.bodyweight ? +draft.bodyweight : null, exercises, feedback: { knee: kneeVal, flare: flareVal, note } });
+      if (flareVal && flareVal !== 'None') s.episodes.push({ id: Date.now(), date: logDate, what: flareVal, ctx: note || 'post-workout' });
+      s.draft = null;
+    });
+    backToDay();
+  };
+
+  render();
+</script>
+</body>
+</html>

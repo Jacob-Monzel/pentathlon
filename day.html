@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pentathlon">
+<meta name="theme-color" content="#EEF2F7">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>Pentathlon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="dayhead">
+    <a href="index.html" class="back">&lsaquo;</a>
+    <div class="dayttl" id="dayttl"></div>
+  </div>
+
+  <div id="logged"></div>
+
+  <div class="section-label">Add to this day</div>
+  <div class="addlift">
+    <button class="primary" id="startLift"></button>
+    <div class="wpick">
+      <button data-w="w1">1</button><button data-w="w2">2</button><button data-w="w3">3</button>
+    </div>
+  </div>
+  <div class="addsports" id="addsports"></div>
+</div>
+<script src="app.js"></script>
+<script>
+  Auth.guard();
+  const date = new URLSearchParams(location.search).get('date') || todayISO();
+  dayttl.textContent = prettyDate(date);
+
+  // logged items
+  function renderLogged() {
+    const sess = sessionsOn(date), acts = activitiesOn(date);
+    if (!sess.length && !acts.length) { logged.innerHTML = '<div class="empty">Nothing logged yet.<br>Add an activity below.</div>'; return; }
+    let html = '<div class="actlist">';
+    sess.forEach(s => {
+      const n = Object.keys(s.exercises || {}).length;
+      html += `<div class="actrow"><div class="act-emoji">\u{1F3CB}\uFE0F</div>
+        <div class="act-body"><b>${PROGRAM[s.day] ? PROGRAM[s.day].label : 'Lift'}</b><span>${n} exercise${n===1?'':'s'} logged</span></div>
+        <button class="act-del" data-sid="${s.id}">\u2715</button></div>`;
+    });
+    acts.forEach(a => {
+      const e = ACT[a.type] ? ACT[a.type].emoji : '\u2022', label = ACT[a.type] ? ACT[a.type].label : a.type;
+      html += `<div class="actrow" data-aid="${a.id}"><div class="act-emoji">${e}</div>
+        <div class="act-body"><b>${label}</b><span>${activitySummary(a)}${a.note?' \u00b7 '+a.note:''}</span></div>
+        <button class="act-del" data-adel="${a.id}">\u2715</button></div>`;
+    });
+    html += '</div>';
+    logged.innerHTML = html;
+
+    logged.querySelectorAll('[data-aid]').forEach(r => r.onclick = ev => {
+      if (ev.target.closest('.act-del')) return;
+      location.href = `activity.html?id=${r.dataset.aid}&date=${date}`;
+    });
+    logged.querySelectorAll('[data-adel]').forEach(b => b.onclick = () => {
+      if (confirm('Delete this activity?')) { deleteActivity(b.dataset.adel); renderLogged(); }
+    });
+    logged.querySelectorAll('[data-sid]').forEach(b => b.onclick = () => {
+      if (confirm('Delete this logged workout?')) {
+        Store.update(s => { s.sessions = s.sessions.filter(x => String(x.id) !== String(b.dataset.sid)); });
+        renderLogged();
+      }
+    });
+  }
+  renderLogged();
+
+  // add lift — suggested next in rotation, overridable
+  const sugg = nextWorkout();
+  startLift.innerHTML = `Start ${PROGRAM[sugg].label} <span class="sugg-tag">suggested</span>`;
+  startLift.onclick = () => location.href = `workout.html?day=${sugg}&date=${date}`;
+  document.querySelectorAll('.wpick button').forEach(b => {
+    if (b.dataset.w === sugg) b.classList.add('on');
+    b.onclick = () => location.href = `workout.html?day=${b.dataset.w}&date=${date}`;
+  });
+
+  // add sports
+  addsports.innerHTML = ACT_ORDER.map(t =>
+    `<button data-type="${t}">${ACT[t].emoji} ${ACT[t].label}</button>`).join('');
+  addsports.querySelectorAll('button').forEach(b => b.onclick = () =>
+    location.href = `activity.html?type=${b.dataset.type}&date=${date}`);
+</script>
+</body>
+</html>

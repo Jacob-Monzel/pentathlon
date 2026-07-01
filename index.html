@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pentathlon">
+<meta name="theme-color" content="#EEF2F7">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>Pentathlon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="page home">
+  <div class="home-brand">Pentathlon</div>
+  <div class="wknav">
+    <button id="prev" aria-label="previous week">&lsaquo;</button>
+    <div class="wklabel" id="wklabel"></div>
+    <button id="next" aria-label="next week">&rsaquo;</button>
+  </div>
+  <div class="goals" id="goals"></div>
+  <div class="wk" id="wk"></div>
+  <div class="links">
+    <a href="progress.html">Progress</a>
+    <a href="episodes.html">Episodes</a>
+    <a href="data.html">Backup</a>
+    <a href="#" id="out">Log out</a>
+  </div>
+</div>
+<script src="app.js"></script>
+<script>
+  Auth.guard();
+  let offset = 0;
+  const today = todayISO();
+
+  const chip = (cls, txt) => `<span class="chip ${cls}">${txt}</span>`;
+  function chipsFor(iso) {
+    let out = '';
+    sessionsOn(iso).forEach(s => out += chip('c-lift', '\u{1F3CB}\uFE0F ' + (PROGRAM[s.day] ? PROGRAM[s.day].label.replace('Workout ','W') : 'Lift')));
+    activitiesOn(iso).forEach(a => {
+      const e = ACT[a.type] ? ACT[a.type].emoji : '\u2022';
+      let t;
+      if (a.type === 'run' || a.type === 'swim') { const tot = actTotals(a).dist; t = `${tot||'?'}${a.unit||(a.type==='run'?'mi':'yd')}`; }
+      else t = `${a.duration||'?'}m`;
+      out += chip('c-' + a.type, `${e} ${t}`);
+    });
+    return out;
+  }
+
+  function nudgeText(c) {
+    const open = GOALS.filter(g => g.soft ? c[g.key] === 0 : c[g.key] < g.target);
+    if (!open.length) return 'Balanced week \u2014 nice work.';
+    const parts = open.map(g => {
+      if (g.key === 'swim') return 'a swim if the pool cooperates';
+      if (g.key === 'fence') return `${g.target - c[g.key]} more fencing`;
+      const r = g.target - c[g.key], base = g.label.toLowerCase().replace(/s$/, '');
+      return `${r} more ${base}${r > 1 ? 's' : ''}`;
+    });
+    return 'Still room for: ' + parts.join(', ') + '.';
+  }
+  function render() {
+    const days = weekDays(offset);
+    const isos = days.map(d => d.iso), c = weekCounts(isos);
+    goals.innerHTML =
+      `<div class="goals-h">${offset === 0 ? 'This week' : 'That week'}</div>
+       <div class="goalrow">${GOALS.map(g => { const n = c[g.key], done = g.soft ? n >= 1 : n >= g.target;
+         const txt = g.soft ? `${n} <em>aim ${g.aim}</em>` : `${n}/${g.target}`;
+         return `<span class="goal ${done ? 'done' : ''}">${g.emoji} ${g.label} ${txt}</span>`; }).join('')}</div>
+       <div class="nudge">${nudgeText(c)}</div>`;
+    wklabel.textContent = `${days[0].mon} ${days[0].dom} \u2013 ${days[6].mon} ${days[6].dom}` + (offset === 0 ? '  \u00b7  this week' : '');
+    wk.innerHTML = '';
+    days.forEach(d => {
+      const isToday = d.iso === today;
+      const chips = chipsFor(d.iso);
+      const el = document.createElement('button');
+      el.className = 'wkday' + (isToday ? ' today' : '');
+      el.innerHTML =
+        `<div class="wkd-date"><span class="wkd-dow">${d.dow}</span><span class="wkd-dom">${d.dom}</span></div>
+         <div class="wkd-body">${chips || '<span class="wkd-empty">rest / open</span>'}</div>
+         <div class="wkd-caret">\u203a</div>`;
+      el.onclick = () => location.href = 'day.html?date=' + d.iso;
+      wk.appendChild(el);
+    });
+  }
+  prev.onclick = () => { offset--; render(); };
+  next.onclick = () => { offset++; render(); };
+  out.onclick = e => { e.preventDefault(); Auth.logout(); };
+  render();
+</script>
+</body>
+</html>
