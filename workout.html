@@ -23,7 +23,7 @@
   <div class="wtitle" id="wtitle"></div>
   <div class="wclock" id="wclock">0:00</div>
 </div>
-<div class="bw-row">
+<div class="bw-row" id="bwrow">
   <label>Bodyweight</label>
   <input id="bw" inputmode="decimal" placeholder="—">
   <span class="bw-unit">lbs</span>
@@ -54,13 +54,87 @@
   const params = new URLSearchParams(location.search);
   const day = params.get('day') || 'w1';
   const logDate = params.get('date') || todayISO();
+  const isPreview = params.get('preview') === '1';
   const backToDay = () => location.href = 'day.html?date=' + logDate;
   const plan = PROGRAM[day];
   if (!plan) location.replace('index.html');
-  wtitle.textContent = plan.label;
+  wtitle.textContent = (isPreview ? 'Preview · ' : '') + plan.label;
 
   const slots = plan.ex.map(e => ({ ...e, baseK: e.k, baseN: e.n }));
-  let draft = (() => { const d = Store.get().draft; return (d && d.day === day && d.date === logDate) ? d : { day, date: logDate, exercises: {} }; })();
+  const slotOpts = slot => [{k:slot.baseK, n:slot.baseN}, ...(slot.alts||[])];
+  const isRx = slot => slot.k === slot.baseK;   // ★ = Derek's prescribed exercise for the slot
+  const rxNote = slot => isRx(slot) ? '' : `<div class="rxnote">★ plan: ${slot.baseN} — swap back when possible</div>`;
+  // sticky swaps: default each slot to what was done last time (history), unless overridden below
+  const applySticky = getDraftKey => slots.forEach(slot => {
+    const opts = slotOpts(slot);
+    let hit = getDraftKey ? opts.find(o => getDraftKey(o.k)) : null;
+    if (!hit) { const k = lastSlotChoice(day, slot.baseK, slot.alts); if (k) hit = opts.find(o => o.k === k); }
+    if (hit && hit.k !== slot.k) { slot.k = hit.k; slot.n = hit.n; }
+  });
+
+  const hasRpe = ex => ex.t === 'top' || ex.t === 'pullup' || !!ex.rpe;
+  function meta(ex) {
+    let s;
+    if (ex.t === 'top') s = `work to ${ex.reps} @ RPE ${ex.rpe} · then back-offs`;
+    else if (ex.t === 'pullup') s = `top set ${ex.reps} · then back-offs`;
+    else { s = `${ex.sets}×${ex.reps}`; if (ex.rpe) s += ` @ RPE ${ex.rpe}`; }
+    if (ex.tempo) s += ` · ${ex.tempo}`;
+    if (ex.cue) s += ` · ${ex.cue}`;
+    return s;
+  }
+  function prevLine(slot) {
+    const ps = prevSets(day, slot.k);
+    if (!ps || !ps.length) return 'no history yet';
+    return 'last · ' + ps.map(s => `${s.w||0}×${s.r||0}`).join(', ');
+  }
+
+  // ---------- PREVIEW MODE — read-only, touches no data, no draft ----------
+  if (isPreview) {
+    applySticky(null);
+    bwrow.style.display = 'none';
+    wclock.style.display = 'none';
+    rest.style.display = 'none';
+    wlist.innerHTML = '';
+    slots.forEach((slot, idx) => {
+      const sg = suggest(slot.k, slot);
+      const sgTxt = (sg && sg.w) ? `suggested ${sg.w}${sg.tag && sg.tag !== 'same' && sg.tag !== 'hold' ? ' · ' + sg.tag : ''}` : '';
+      const alts = slotOpts(slot).filter(o => o.k !== slot.k)
+        .map(o => (o.k === slot.baseK ? '★ ' : '') + o.n).join(' · ');
+      const card = document.createElement('div');
+      card.className = 'exc';
+      card.innerHTML =
+        `<div class="exn-row"><div class="exn">${isRx(slot)?'★ ':''}${slot.n}</div><div class="exn-btns">${CUES[slot.k]?`<button class="infobtn" data-idx="${idx}">how</button>`:''}</div></div>
+         ${CUES[slot.k]?`<div class="cuebox" id="cue-${idx}" hidden><ul>${CUES[slot.k].map(c=>`<li>${c}</li>`).join('')}</ul></div>`:''}
+         <div class="exmeta">${meta(slot)}</div>
+         ${rxNote(slot)}
+         <div class="prev">${prevLine(slot)}${sgTxt?` · <b>${sgTxt}</b>`:''}</div>
+         ${alts?`<div class="exmeta">swaps: ${alts}</div>`:''}`;
+      wlist.appendChild(card);
+    });
+    wlist.querySelectorAll('.infobtn').forEach(b => b.onclick = () => {
+      const c = document.getElementById('cue-' + b.dataset.idx); if (c) c.hidden = !c.hidden;
+    });
+    finish.textContent = 'Start this workout';
+    finish.onclick = () => location.href = `workout.html?day=${day}&date=${logDate}`;
+    exit.onclick = backToDay;
+    return;
+  }
+
+  // ---------- resume guard — never silently clobber another in-progress workout ----------
+  {
+    const d = Store.get().draft;
+    if (draftHasContent(d) && (d.day !== day || d.date !== logDate)) {
+      const lbl = PROGRAM[d.day] ? PROGRAM[d.day].label : 'workout';
+      if (confirm(`You have an unfinished ${lbl} (${prettyDate(d.date)}). Resume it?\n\nCancel discards it and starts this one instead.`)) {
+        location.replace(`workout.html?day=${d.day}&date=${d.date}`);
+        return;
+      }
+    }
+  }
+
+  let draft = (() => { const d = Store.get().draft; return (d && d.day === day && d.date === logDate) ? d : { day, date: logDate, startedAt: Date.now(), exercises: {} }; })();
+  if (!draft.startedAt) draft.startedAt = Date.now();
+  applySticky(k => draft.exercises[k] && draft.exercises[k].sets && draft.exercises[k].sets.length);
   const exState = k => (draft.exercises[k] = draft.exercises[k] || { sets: [] });
   const save = () => Store.update(s => { s.draft = draft; });
   const curSlot = k => slots.find(s => s.k === k);
@@ -84,22 +158,6 @@
   }
   slots.forEach(seedSlot); save();
 
-  const hasRpe = ex => ex.t === 'top' || ex.t === 'pullup' || !!ex.rpe;
-  function meta(ex) {
-    let s;
-    if (ex.t === 'top') s = `work to ${ex.reps} @ RPE ${ex.rpe} · then back-offs`;
-    else if (ex.t === 'pullup') s = `top set ${ex.reps} · then back-offs`;
-    else { s = `${ex.sets}×${ex.reps}`; if (ex.rpe) s += ` @ RPE ${ex.rpe}`; }
-    if (ex.tempo) s += ` · ${ex.tempo}`;
-    if (ex.cue) s += ` · ${ex.cue}`;
-    return s;
-  }
-  function prevLine(slot) {
-    const ps = prevSets(day, slot.k);
-    if (!ps || !ps.length) return 'no history yet';
-    return 'last · ' + ps.map(s => `${s.w||0}×${s.r||0}`).join(', ');
-  }
-
   function render() {
     wlist.innerHTML = '';
     slots.forEach((slot, idx) => {
@@ -111,21 +169,22 @@
         rows += `<div class="setrow" data-k="${slot.k}" data-i="${i}">
           <span class="setn">${i+1}</span>
           <input class="sw" inputmode="numeric" value="${set.w}">
-          <input class="sr" inputmode="numeric" value="${set.r}" placeholder="${slot.reps.replace(/ \/ side/,'')}">
+          <input class="sr" inputmode="numeric" value="${set.r}" placeholder="${slot.reps.replace(/ \/ (side|hand)/,'')}">
           ${hasRpe(slot)?`<input class="srpe" inputmode="numeric" value="${set.rpe}" placeholder="${i===0&&slot.rpe?slot.rpe:''}">`:''}
           <button class="chk ${set.done?'on':''}">✓</button>
         </div>`;
       });
-      const opts = [{k:slot.baseK,n:slot.baseN}, ...(slot.alts||[])].filter(o => o.k !== slot.k);
+      const opts = slotOpts(slot).filter(o => o.k !== slot.k);
       const swapMenu = `<div class="swapmenu" id="sm-${idx}" hidden>` +
-        opts.map(o => `<button data-idx="${idx}" data-k="${o.k}" data-n="${o.n}">${o.n}</button>`).join('') + `</div>`;
+        opts.map(o => `<button data-idx="${idx}" data-k="${o.k}" data-n="${o.n}">${o.k===slot.baseK?'★ ':''}${o.n}</button>`).join('') + `</div>`;
       const card = document.createElement('div');
       card.className = 'exc';
       card.innerHTML =
-        `<div class="exn-row"><div class="exn">${slot.n}</div><div class="exn-btns">${CUES[slot.k]?`<button class="infobtn" data-idx="${idx}">how</button>`:''}<button class="swapbtn" data-idx="${idx}">swap</button></div></div>
+        `<div class="exn-row"><div class="exn">${isRx(slot)?'★ ':''}${slot.n}</div><div class="exn-btns">${CUES[slot.k]?`<button class="infobtn" data-idx="${idx}">how</button>`:''}<button class="swapbtn" data-idx="${idx}">swap</button></div></div>
          ${CUES[slot.k]?`<div class="cuebox" id="cue-${idx}" hidden><ul>${CUES[slot.k].map(c=>`<li>${c}</li>`).join('')}</ul></div>`:''}
          ${swapMenu}
          <div class="exmeta">${meta(slot)}</div>
+         ${rxNote(slot)}
          <div class="prev">${prevLine(slot)}${sgTxt?` · <b>${sgTxt}</b>`:''}</div>
          <div class="sets">${rows}</div>
          <div class="exfoot"><button class="addset" data-k="${slot.k}">+ set</button><button class="rmset" data-k="${slot.k}">− set</button>${(slot.t==='top'||slot.t==='pullup')?`<span class="boff" id="boff-${slot.k}"></span>`:''}</div>`;
@@ -187,17 +246,30 @@
   }
   function pullupHint(k) { const el = document.getElementById('boff-' + k); if (el) el.textContent = '↳ back-offs: same or a touch lighter'; }
 
+  // ---------- rest timer — timestamp-based, survives backgrounding & reloads ----------
   let restInt = null;
   const fmtT = s => `${Math.floor(s/60)}:${String(Math.max(0,s%60)).padStart(2,'0')}`;
-  function startRest(sec = 90) {
-    let t = sec; clearInterval(restInt);
-    rest.classList.add('on'); rest.querySelector('.rt').textContent = fmtT(t);
-    restInt = setInterval(() => { t--; rest.querySelector('.rt').textContent = fmtT(t); if (t <= 0) { clearInterval(restInt); rest.classList.remove('on'); } }, 1000);
+  function renderRest() {
+    if (!draft.restEnd) { if (restInt) { clearInterval(restInt); restInt = null; } rest.classList.remove('on'); return; }
+    const left = Math.ceil((draft.restEnd - Date.now()) / 1000);
+    if (left <= 0) {
+      draft.restEnd = null; save();
+      if (restInt) { clearInterval(restInt); restInt = null; }
+      rest.classList.remove('on');
+      if (navigator.vibrate) navigator.vibrate(200);
+      return;
+    }
+    rest.classList.add('on'); rest.querySelector('.rt').textContent = fmtT(left);
   }
-  rest.onclick = () => { clearInterval(restInt); rest.classList.remove('on'); };
+  function tickRest() { renderRest(); if (draft.restEnd && !restInt) restInt = setInterval(renderRest, 500); }
+  function startRest(sec = 90) { draft.restEnd = Date.now() + sec * 1000; save(); tickRest(); }
+  rest.onclick = () => { draft.restEnd = null; save(); renderRest(); };
 
-  const t0 = Date.now();
-  setInterval(() => { wclock.textContent = fmtT(Math.floor((Date.now()-t0)/1000)); }, 1000);
+  // ---------- workout clock — anchored to draft.startedAt, survives reloads ----------
+  const renderClock = () => { wclock.textContent = fmtT(Math.floor((Date.now() - draft.startedAt) / 1000)); };
+  setInterval(renderClock, 1000); renderClock();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderRest(); renderClock(); } });
+  tickRest();
 
   let kneeVal = null, flareVal = 'None';
   kneeScale.innerHTML = [0,1,2,3,4,5,6,7,8,9,10].map(v => `<button data-v="${v}">${v}</button>`).join('');

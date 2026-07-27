@@ -58,7 +58,7 @@
 
   wipe.onclick = () => {
     if (confirm('Erase all sessions and episodes? Export first if unsure.')) {
-      Store.update(s => { s.sessions = []; s.episodes = []; s.activities = []; });
+      Store.update(s => { s.sessions = []; s.episodes = []; s.activities = []; s.draft = null; });
       alert('Erased.');
     }
   };

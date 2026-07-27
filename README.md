@@ -46,10 +46,10 @@ All files live at the **repo root** (GitHub Pages serves from there).
 
 | File | Role |
 |------|------|
-| `index.html` | **Home.** Week calendar (Mon–Sun, ‹ › nav), per-day activity chips, the "This week" goals nudge. Entry point. |
+| `index.html` | **Home.** Week calendar (Mon–Sun, ‹ › nav), per-day activity chips, the "This week" goals nudge, **Resume banner** when a workout is in progress. Entry point. |
 | `login.html` | Email/password auth (Supabase). Shown when no session. |
-| `day.html` | **Day detail** (`?date=YYYY-MM-DD`). Lists logged items; "add activity" chooser (lift 1/2/3 + sports). |
-| `workout.html` | **Lift logging** (`?day=w1|w2|w3&date=...`). Sets grid, top-set/backoff, swaps, rest timer, post-workout feedback (knee/flare). |
+| `day.html` | **Day detail** (`?date=YYYY-MM-DD`). Lists logged items; "add activity" chooser (lift 1/2/3 + sports); **Preview 1/2/3** row; **Resume banner** when a workout is in progress. |
+| `workout.html` | **Lift logging** (`?day=w1|w2|w3&date=...`). Sets grid, top-set/backoff, swaps, rest timer, post-workout feedback (knee/flare). Add `&preview=1` for a **read-only preview** (exercises, targets, last numbers, suggestions, cues, swaps) that touches no data. |
 | `activity.html` | **Sport logging** (`?type=run|swim|fence|ninja&date=...` or `?id=...` to edit). Run/swim get intensity + unit + Continuous/Intervals + segment builder + templates. |
 | `progress.html` | Bodyweight trend, est-1RM sparklines for major lifts, weekly effective-set volume bars. |
 | `episodes.html` | Groin/rotation flare log with days-since-last. |
@@ -143,11 +143,47 @@ Reads `topHistory(k)` (last set 1 of each session).
 - `activitySummary(a)`, `actTotals(a)`, `parseTime/fmtDur` (pace math).
 - `nextWorkout()` — rotation suggestion (w1→w2→w3) based on last lift, overridable.
 
+### Athletic workouts (⚡ a1/a2)
+- Two structured sessions in PROGRAM alongside w1–w3: **a1 Sprint** and **a2 Jump**,
+  started from the day page like lifts, with their own rotation (`nextAthletic()` —
+  suggests the opposite of the last athletic session), preview, sticky swaps, ★s,
+  draft/resume, and the knee/flare feedback sheet (groin monitoring on jump days).
+- Each session is ordered **warm-up → build → MAX**; the athlete does what they're
+  ready for — untouched exercises simply don't log — so progression = working further
+  down the list. MAX-tier items (max sprints, stage-3 jumps) are cue-marked as gated
+  on PT clearance. a2 embeds the plyo arc (rhythm → fast-ground → stage-3 max intent,
+  ≤ 2 wks/stage) directly in its exercise order and cues.
+- Exercise type `t:'ath'`: no weight-progression suggestions (`suggest()` returns null),
+  reps field = meters/seconds/reps as labeled. `ATHLETIC_DAYS` guards: lift rotation
+  ignores athletic sessions, `weeklyVolume()` counts lifting days only, weekCounts
+  buckets a-day sessions under `athletic`. The old ⚡ activity type is out of the
+  chooser (`ACT_ORDER`) but its definition remains so legacy entries still render.
+
 ### Volume, cues, goals
 - `EX_MUSCLES` + `weeklyVolume()` — effective sets per muscle (secondary at ½). Progress page.
 - `CUES` — 2–3 execution cues for all 75 exercises (mains + alts). "how" button in workout.
 - `GOALS` + `weekCounts()` — soft weekly targets (lift 3, run 2, swim 1 "aim 1–2",
   fence 2) → the "This week" nudge on home. Positive framing only.
+
+### Sticky swaps + prescribed stars (workout.html)
+- Each slot defaults to the exercise **actually done last time** for that slot
+  (`lastSlotChoice(day, baseK, alts)` in app.js scans this day's sessions newest-first
+  across the slot's candidate keys; an in-progress draft takes precedence on resume).
+- The PROGRAM main is the **prescribed** exercise (★): starred on the card and in the
+  swap menu; when the current pick deviates, an amber "★ plan: … — swap back when
+  possible" note shows. Preview mode reflects both.
+
+### Draft / resume / timers (workout.html)
+- Every input in a workout **autosaves** into `draft` (localStorage instantly + synced to
+  Supabase like everything else), so closing the app mid-workout loses nothing.
+- `draftHasContent(d)` / `draftInfo()` (app.js) — a draft "counts" once any set has real
+  numbers. Home and Day pages show a **Resume banner** linking back to it.
+- **Clobber guard:** opening a *different* workout while one is in progress asks
+  resume-or-discard instead of silently wiping the draft.
+- **Timers are timestamp-based.** `draft.startedAt` anchors the workout clock;
+  `draft.restEnd` anchors the rest countdown. Both are computed from `Date.now()` on
+  every tick and re-checked on `visibilitychange`, so backgrounding the PWA or even a
+  full reload can't desync them. Finishing a workout clears the draft.
 
 ### Calendar
 `weekDays(offset)` (Mon-first), `todayISO()`/`isoOf()` (local time, not UTC),
@@ -230,5 +266,9 @@ Ordered by value:
 - Data lives in **two places** (cloud + each device's cache); a single failure never
   loses everything. Still: periodic Backup export = belt and suspenders.
 - **Fencing defaults to épée** (the pentathlon weapon); sabre/foil selectable.
+- **iOS backgrounds JS**, so the rest timer can't beep while the app is closed — but it's
+  timestamp-anchored, so the moment you return it shows the true remaining time (or has
+  correctly finished, with a vibration where supported). A real background alert would
+  need push notifications; deliberately out of scope.
 - No framework on purpose. Keep it that way unless there's a strong reason — the
   simplicity is the feature.

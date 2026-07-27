@@ -6,41 +6,43 @@
 const PROGRAM = {
   w1: { label:'Workout 1', ex:[
     {k:'wallsq',  n:'Heels-elevated wall squat', t:'work', sets:3, reps:'8–12', tempo:'2-0-2', cue:'~2 in reserve',
-      alts:[{k:'goblet_slow',n:'Heels-elevated goblet squat'},{k:'kneeext',n:'Seated knee extension'},{k:'spanishsq',n:'Spanish squat'}]},
+      alts:[{k:'kneeext',n:'Seated knee extension'}]},
     {k:'bench',   n:'Smith machine bench', t:'top', sets:4, reps:'4', rpe:8, inc:5,
-      alts:[{k:'bench_bb',n:'Barbell bench (w/ spotter)'},{k:'bench_db',n:'DB bench press'},{k:'bench_cg',n:'Close-grip bench'}]},
+      alts:[{k:'bench_bb',n:'Barbell bench (w/ spotter)'},{k:'bench_db',n:'DB bench press'},{k:'chestpress',n:'Machine chest press'}]},
     {k:'legpress',n:'Leg press', t:'work', sets:3, reps:'5–8', rpe:7,
       alts:[{k:'hacksquat',n:'Hack squat'},{k:'gobletsq',n:'Goblet squat'}]},
-    {k:'gm',      n:'DB good morning', t:'work', sets:3, reps:'6–10',
-      alts:[{k:'backext',n:'45° back extension'},{k:'gm_bb',n:'Barbell good morning'}]},
+    {k:'backext', n:'45° back extension', t:'work', sets:3, reps:'6–10',
+      alts:[{k:'gm_bb',n:'Barbell good morning'}]},
     {k:'pmtap',   n:'Posterior medial tap', t:'work', sets:3, reps:'8–12 / side', cue:'chase range',
       alts:[{k:'stepdown',n:'Lateral step-down'},{k:'slrdl',n:'Single-leg RDL'}]},
     {k:'pulldown',n:'Single-arm lat pulldown', t:'work', sets:3, reps:'8–12 / side',
       alts:[{k:'pulldown_neutral',n:'Neutral-grip pulldown'},{k:'pullover',n:'Cable pullover'}]},
-    {k:'sealrow', n:'Seal row', t:'work', sets:3, reps:'8–12',
-      alts:[{k:'row_db',n:'DB row'},{k:'cablerow',n:'Cable row'}]},
+    {k:'row_db',  n:'DB row', t:'work', sets:3, reps:'8–12',
+      alts:[{k:'cablerow',n:'Cable row'},{k:'row_machine',n:'Machine row'}]},
+    {k:'pallof',  n:'Pallof press', t:'work', sets:3, reps:'8–12 / side', cue:'resist the twist',
+      alts:[{k:'pallof_kneel',n:'Half-kneeling Pallof'},{k:'deadbug',n:'Dead bug'},{k:'rollout',n:'Ab rollout'}]},
     {k:'dbcurl',  n:'DB curl', t:'work', sets:3, reps:'8–12',
       alts:[{k:'curl_bb',n:'Barbell curl'},{k:'curl_cable',n:'Cable curl'},{k:'curl_hammer',n:'Hammer curl'}]},
     {k:'facepull',n:'Face pull', t:'work', sets:3, reps:'12–20',
-      alts:[{k:'reardelt',n:'Rear-delt fly'},{k:'bandpull',n:'Band pull-apart'}]},
+      alts:[{k:'reardelt',n:'Rear-delt fly'}]},
     {k:'calf_stand',n:'Standing calf raise', t:'work', sets:3, reps:'8–12', tempo:'2-1-2', cue:'gastroc',
-      alts:[{k:'calf_legpress',n:'Leg-press calf raise'},{k:'calf_single',n:'Single-leg calf raise'}]},
+      alts:[{k:'calf_legpress',n:'Leg-press calf raise'}]},
+    {k:'pinchhold',n:'DB head pinch hold', t:'work', sets:3, reps:'20–40s / hand', cue:'fingers on the round head',
+      alts:[{k:'platepinch',n:'Plate pinch'},{k:'farmerhold',n:'Heavy farmer hold'}]},
   ]},
   w2: { label:'Workout 2', ex:[
     {k:'kneeext', n:'Seated knee extension', t:'work', sets:3, reps:'8–12', tempo:'2-0-2', cue:'~2 in reserve',
-      alts:[{k:'wallsq',n:'Heels-elevated wall squat'},{k:'legpress_slow',n:'Slow leg-press (knee-forward)'},{k:'spanishsq',n:'Spanish squat'}]},
+      alts:[{k:'wallsq',n:'Heels-elevated wall squat'},{k:'legpress_slow',n:'Slow leg-press (knee-forward)'}]},
     {k:'rdl',     n:'Romanian deadlift', t:'work', sets:3, reps:'5–8', rpe:7,
       alts:[{k:'rdl_db',n:'DB RDL'},{k:'backext',n:'45° back extension'}]},
     {k:'incline', n:'Smith machine incline', t:'top', sets:4, reps:'4', rpe:8, inc:5,
-      alts:[{k:'incline_bb',n:'Barbell incline (w/ spotter)'},{k:'incline_db',n:'DB incline press'}]},
+      alts:[{k:'incline_bb',n:'Barbell incline (w/ spotter)'},{k:'incline_db',n:'DB incline press'},{k:'incline_machine',n:'Machine incline press'}]},
+    {k:'splitsq', n:'DB split squat', t:'work', sets:3, reps:'6–10 / side', cue:'alternate w/ sumo (swap)',
+      alts:[{k:'sumosq',n:'DB sumo squat'},{k:'cossack',n:'Cossack squat'},{k:'bulgarian',n:'Bulgarian split squat'},{k:'reverselunge',n:'Reverse lunge'}]},
     {k:'pullup',  n:'Weighted pull-up', t:'pullup', sets:3, reps:'4–6', inc:5, added:true,
       alts:[{k:'pullup_neutral',n:'Neutral-grip pull-up'},{k:'chinup',n:'Weighted chin-up'},{k:'pulldown_wide',n:'Lat pulldown'}]},
     {k:'cablerow', n:'Cable row', t:'work', sets:3, reps:'8–12',
-      alts:[{k:'row_db',n:'DB row'},{k:'sealrow',n:'Seal row'}]},
-    {k:'splitsq', n:'DB split squat', t:'work', sets:3, reps:'6–10 / side',
-      alts:[{k:'bulgarian',n:'Bulgarian split squat'},{k:'reverselunge',n:'Reverse lunge'}]},
-    {k:'sumosq',  n:'DB sumo squat', t:'work', sets:3, reps:'8–12', cue:'chase range',
-      alts:[{k:'gobletsq',n:'Goblet squat'},{k:'cossack',n:'Cossack squat'}]},
+      alts:[{k:'row_db',n:'DB row'}]},
     {k:'armbar',  n:'DB armbar', t:'work', sets:3, reps:'6–10 / side', cue:'control',
       alts:[{k:'windmill',n:'KB windmill'},{k:'halfkneelpress',n:'Half-kneeling press'}]},
     {k:'latraise',n:'Lateral raise', t:'work', sets:2, reps:'12–20',
@@ -50,15 +52,15 @@ const PROGRAM = {
   ]},
   w3: { label:'Workout 3', ex:[
     {k:'kneeext', n:'Seated knee extension', t:'work', sets:3, reps:'8–12', tempo:'2-0-2', cue:'~2 in reserve',
-      alts:[{k:'wallsq',n:'Heels-elevated wall squat'},{k:'legpress_slow',n:'Slow leg-press (knee-forward)'},{k:'spanishsq',n:'Spanish squat'}]},
+      alts:[{k:'wallsq',n:'Heels-elevated wall squat'},{k:'legpress_slow',n:'Slow leg-press (knee-forward)'}]},
     {k:'boxsq',   n:'Box squat', t:'work', sets:4, reps:'5', rpe:8, tempo:'3-0-3',
-      alts:[{k:'ssbsquat',n:'SSB box squat'},{k:'frontsq',n:'Front squat'},{k:'backsq',n:'Back squat'}]},
+      alts:[{k:'gobletbox',n:'DB goblet box squat'},{k:'frontsq',n:'Front squat'},{k:'backsq',n:'Back squat'}]},
     {k:'ohp',     n:'Overhead press', t:'top', sets:4, reps:'4', rpe:8, inc:5,
-      alts:[{k:'ohp_db',n:'DB shoulder press'},{k:'ohp_landmine',n:'Landmine press'}]},
+      alts:[{k:'ohp_db',n:'DB shoulder press'},{k:'ohp_machine',n:'Machine shoulder press'}]},
     {k:'row',     n:'Chest-supported row', t:'work', sets:3, reps:'6–10',
-      alts:[{k:'row_db',n:'DB row'},{k:'cablerow',n:'Cable row'}]},
+      alts:[{k:'row_db',n:'DB row'},{k:'cablerow',n:'Cable row'},{k:'row_machine',n:'Machine row'}]},
     {k:'legcurl', n:'Lying leg curl', t:'work', sets:3, reps:'8–12', tempo:'2-1-2', cue:'controlled, build slowly',
-      alts:[{k:'slider_curl',n:'Slider leg curl'},{k:'legcurl_seated',n:'Seated leg curl'},{k:'nordic',n:'Nordic curl (eccentric)'}]},
+      alts:[{k:'legcurl_seated',n:'Seated leg curl'},{k:'nordic',n:'Nordic curl (eccentric)'}]},
     {k:'latlunge',n:'Lateral lunge', t:'work', sets:3, reps:'8–12 / side', cue:'chase range',
       alts:[{k:'cossack',n:'Cossack squat'},{k:'lateralstepup',n:'Lateral step-up'}]},
     {k:'windmill',n:'KB windmill', t:'work', sets:3, reps:'6–10 / side', cue:'control',
@@ -68,7 +70,48 @@ const PROGRAM = {
     {k:'latraise',n:'Lateral raise', t:'work', sets:3, reps:'12–20',
       alts:[{k:'latraise_cable',n:'Cable lateral raise'},{k:'latraise_machine',n:'Machine lateral raise'}]},
     {k:'calf_seated',n:'Seated calf raise', t:'work', sets:3, reps:'10–15', cue:'soleus',
-      alts:[{k:'calf_db_seated',n:'DB seated calf raise'},{k:'calf_legpress',n:'Leg-press calf raise'},{k:'calf_stand',n:'Standing calf raise'}]},
+      alts:[{k:'calf_legpress',n:'Leg-press calf raise'},{k:'calf_stand',n:'Standing calf raise'}]},
+    {k:'deadhang',n:'Weighted dead hang', t:'work', sets:3, reps:'30–90s', cue:'weight = added lbs · past 90s? add 5',
+      alts:[{k:'towelhang',n:'Towel hang'},{k:'farmerhold',n:'Heavy farmer hold'}]},
+  ]},
+  // ---- Athletic sessions: ordered warm-up → build → MAX. Do what you're
+  // ready for, skip the rest (untouched exercises don't log). MAX tier waits
+  // for PT clearance. reps = meters / seconds / reps as labeled. ----
+  a1: { label:'Athletic 1 · Sprint', ex:[
+    {k:'jogwarm',  n:'Easy jog + leg swings', t:'ath', sets:1, reps:'5–8 min', cue:'warm-up',
+      alts:[{k:'bikewarm',n:'Bike / row warm-up'}]},
+    {k:'askip',    n:'A-skip', t:'ath', sets:2, reps:'20m', cue:'warm-up · crisp posture',
+      alts:[{k:'amarch',n:'A-march'}]},
+    {k:'bskip',    n:'B-skip', t:'ath', sets:2, reps:'20m', cue:'warm-up',
+      alts:[{k:'fastleg',n:'Fast-leg drill'}]},
+    {k:'highknee', n:'High-knee run', t:'ath', sets:2, reps:'20m', cue:'build',
+      alts:[{k:'buttkick',n:'Butt-kick run'}]},
+    {k:'slbound',  n:'Straight-leg bound', t:'ath', sets:2, reps:'20m', cue:'build · low + short',
+      alts:[{k:'carioca',n:'Carioca'}]},
+    {k:'buildup',  n:'Build-up 85–90%', t:'ath', sets:4, reps:'40m', cue:'build · walk-back rest',
+      alts:[{k:'strides',n:'Strides (relaxed)'}]},
+    {k:'maxsprint',n:'Max sprint', t:'ath', sets:3, reps:'30–40m', cue:'MAX · full rest · only when ready',
+      alts:[{k:'hillsprint',n:'Hill sprint'},{k:'flysprint',n:'Flying 20m'}]},
+  ]},
+  a2: { label:'Athletic 2 · Jump', ex:[
+    {k:'pogo',     n:'Pogo hops', t:'ath', sets:2, reps:'10–15', cue:'stage 1 · rhythm · quiet feet',
+      alts:[{k:'jumprope',n:'Jump rope'}]},
+    {k:'linehop',  n:'Line hops (front/side)', t:'ath', sets:2, reps:'10 / dir', cue:'stage 1 · rhythm',
+      alts:[{k:'lateralhop',n:'Lateral low hop'}]},
+    {k:'mbscoop',  n:'Med-ball rotational throw', t:'ath', sets:3, reps:'5 / side', cue:'full intent · safe now',
+      alts:[{k:'mbchest',n:'Med-ball chest pass'}]},
+    {k:'mbslam',   n:'Med-ball slam', t:'ath', sets:3, reps:'5', cue:'safe now',
+      alts:[{k:'mboverhead',n:'Med-ball overhead throw'}]},
+    {k:'snapdown', n:'Snap-down', t:'ath', sets:2, reps:'5', cue:'stage 2 · fast ground',
+      alts:[{k:'dropcatch',n:'Drop-and-catch'}]},
+    {k:'hurdlehop',n:'Low hurdle hop', t:'ath', sets:3, reps:'5', cue:'stage 2 · fast ground',
+      alts:[{k:'lowbox',n:'Low box hop'}]},
+    {k:'boxjump',  n:'Box jump', t:'ath', sets:3, reps:'3–5', cue:'stage 3 · MAX · cleared only',
+      alts:[{k:'depthdrop',n:'Depth drop'},{k:'squatjump',n:'Squat jump'}]},
+    {k:'broadjump',n:'Broad jump', t:'ath', sets:3, reps:'3', cue:'stage 3 · MAX',
+      alts:[{k:'vertjump',n:'Vertical jump'}]},
+    {k:'lungeplyo',n:'Lunge-and-recover plyo', t:'ath', sets:3, reps:'3 / side', cue:'stage 3 · the fencing one',
+      alts:[{k:'splitjump',n:'Split-squat jump'}]},
   ]},
 };
 // lifts shown on the Progress page (balanced upper + lower)
@@ -191,6 +234,7 @@ function e1rmSeries(k) {
   });
 }
 function suggest(k, ex) {
+  if (ex && ex.t === 'ath') return null;
   const h = topHistory(k);
   const p = h[h.length-1];
   if (!p) return null;
@@ -217,11 +261,17 @@ function latestBodyweight() { const l = bodyweightLog(); return l.length ? l[l.l
 // ---- weekly EFFECTIVE sets per muscle group (primary 1.0 + secondary 0.5) ----
 const EX_MUSCLES = {
   bench:[['Chest',1],['Triceps',0.5],['Shoulders',0.5]],
+  chestpress:[['Chest',1],['Triceps',0.5],['Shoulders',0.5]],
+  incline_machine:[['Chest',1],['Triceps',0.5],['Shoulders',0.5]],
+  ohp_machine:[['Shoulders',1],['Triceps',0.5]],
+  row_machine:[['Back',1],['Biceps',0.5],['Rear delts',0.5]],
+  gobletbox:[['Quads',1],['Glutes / hips',0.5]],
   incline:[['Chest',1],['Triceps',0.5],['Shoulders',0.5]],
   pulldown:[['Back',1],['Biceps',0.5]],
   pullup:[['Back',1],['Biceps',0.5]],
   row:[['Back',1],['Biceps',0.5],['Rear delts',0.5]],
   sealrow:[['Back',1],['Biceps',0.5],['Rear delts',0.5]],
+  row_db:[['Back',1],['Biceps',0.5],['Rear delts',0.5]],
   cablerow:[['Back',1],['Biceps',0.5],['Rear delts',0.5]],
   facepull:[['Rear delts',1]],
   latraise:[['Side delts',1]],
@@ -234,6 +284,7 @@ const EX_MUSCLES = {
   wallsq:[['Knee rehab',1]],
   kneeext:[['Knee rehab',1]],
   gm:[['Hamstrings',1],['Glutes / hips',0.5]],
+  backext:[['Hamstrings',1],['Glutes / hips',0.5]],
   rdl:[['Hamstrings',1],['Glutes / hips',0.5]],
   legcurl:[['Hamstrings',1]],
   calf_stand:[['Calves',1]],
@@ -243,10 +294,13 @@ const EX_MUSCLES = {
   latlunge:[['Glutes / hips',1],['Quads',0.5]],
   armbar:[['Core',1]],
   windmill:[['Core',1]],
+  pallof:[['Core',1]],
+  pinchhold:[['Grip',1]],
+  deadhang:[['Grip',1],['Core',0.5]],
 };
 function weeklyVolume() {
   const t = {};
-  Object.values(PROGRAM).forEach(d => d.ex.forEach(e => {
+  WORKOUTS.map(w => PROGRAM[w]).forEach(d => d.ex.forEach(e => {
     (EX_MUSCLES[e.k] || [['Other',1]]).forEach(([g, wt]) => { t[g] = (t[g]||0) + wt * e.sets; });
   }));
   return Object.entries(t).map(([group, sets]) => ({ group, sets })).sort((a,b) => b.sets - a.sets);
@@ -264,7 +318,6 @@ const CUES = {
   hacksquat:["Feet mid-platform, brace, unrack.","Descend under control, knees track toes.","Drive up without bouncing out of the hole."],
   gobletsq:["DB/KB at the chest, elbows tucked.","Sit between the hips, chest tall.","Full depth if pain-free, controlled tempo."],
   boxsq:["Box just below parallel.","Pull down on the bar and twist your feet into the floor.","Sit back to the box (3 s down), stay tight, drive up."],
-  ssbsquat:["Brace hard against the bar's forward pull.","Sit back to the box, upright torso.","Controlled down, drive up."],
   frontsq:["Bar on the front delts, elbows high.","Sit straight down, torso upright.","Drive up through the midfoot."],
   backsq:["Twist the feet into the floor, brace.","Sit down and back to depth.","Drive up, no forward pitch."],
   splitsq:["Long stance, torso tall, weight on the front heel.","Drop the back knee straight down.","Push through the front foot, control down."],
@@ -305,6 +358,56 @@ const CUES = {
   cablerow:["Tall chest, pull to the belly.","Drive the elbows back, squeeze the blades.","Control the stretch forward."],
   row:["Chest supported, row to the lower ribs.","Elbows back, squeeze the mid-back.","Full stretch each rep, no heave."],
   row_db:["Hand and knee on a bench, flat back.","Row the DB to the hip, elbow tight.","Lower to a full stretch."],
+  row_machine:["Chest on the pad, grab the handles.","Pull to the ribs, squeeze the blades.","Slow return to a full stretch."],
+  chestpress:["Seat set so handles meet mid-chest.","Press smooth, don't lock hard.","Control back until a slight stretch."],
+  incline_machine:["Seat set so handles start below the collarbone.","Drive up and slightly back.","2 seconds down, no bounce."],
+  ohp_machine:["Seat upright, handles at shoulder height.","Press without shrugging into the ears.","Lower under control to the start."],
+  gobletbox:["Heavy DB at the chest, box behind you.","Same 3-0-3 tempo as the barbell version.","Sit back, tap, drive up — no plop."],
+  pallof:["Cable/band at chest height, stand side-on.","Press straight out, arms long — don't let it twist you.","Slow return; ribs down, glutes on."],
+  pallof_kneel:["Inside knee down, tall posture.","Press out and hold 2s; hips stay square.","Harder base = more honest anti-rotation."],
+  deadbug:["Low back pressed into the floor the whole time.","Opposite arm + leg reach, slow.","Exhale as the leg lowers; no arch."],
+  rollout:["Start on knees, ribs tucked.","Roll out only as far as the back stays flat.","Pull back with the lats, not the hips."],
+  pinchhold:["Grip the DB by its round head, fingers only.","Stand tall, shoulder packed — don't shrug.","Set ends when the fingers peel; log seconds."],
+  platepinch:["Pinch smooth plates together, thumb vs fingers.","Keep the wrist neutral.","Add plates before adding time past 40s."],
+  farmerhold:["Heaviest DBs you can hold, stand tall.","Shoulders back, ribs stacked, breathe.","Time the hold; walk optional."],
+  deadhang:["Full grip on the bar, arms long.","Let the shoulders stretch but stay engaged — not limp.","Weight field = added lbs (blank = bodyweight); log seconds."],
+  towelhang:["Towel over the bar, grip the ends.","The OCR grip — crushing, not hooking.","Shorter times are normal; build up."],
+  // athletic · sprint day
+  jogwarm:["Easy conversational jog.","Finish with leg swings: front/back + side/side.","You should feel warm, not worked."],
+  bikewarm:["5–8 min easy spin or row.","Build slightly at the end.","Sweat = ready."],
+  askip:["Skip with a sharp knee punch.","Tall posture, arms drive.","Foot strikes under the hips."],
+  amarch:["Same shape as the A-skip, walking.","Knee up, toe up, stay tall.","Master this before skipping."],
+  bskip:["A-skip, then paw the leg down and back.","Leg extends, then pulls under you.","Rhythm over speed."],
+  fastleg:["Jog, then cycle one leg fast for 3 steps.","Alternate legs each rep.","Quick off the ground."],
+  highknee:["Run in place moving forward, knees to hip height.","Fast cadence, short ground time.","Arms pump hard."],
+  buttkick:["Heels flick to the glutes, knees down.","Fast and light.","Hamstrings doing the work."],
+  slbound:["Legs near-straight, bound off the ankles.","Keep it LOW and short.","Any groin twinge = done."],
+  carioca:["Sideways cross-step pattern.","Hips rotate, shoulders stay square.","Both directions."],
+  buildup:["Accelerate smoothly to ~85–90% by 30m.","Float the last 10m — never strain.","Walk all the way back between reps."],
+  strides:["Relaxed 70–80% runs.","Tall, smooth, springy.","Form practice, not effort."],
+  maxsprint:["Full acceleration, 30–40m, then coast.","2–3 min rest minimum — the rest IS the workout.","Stop the session when speed drops."],
+  hillsprint:["Find a moderate hill, sprint 20–30m up.","Lower hamstring risk than flat sprints.","Walk down = rest."],
+  flysprint:["Build 20m, then 20m at max.","Measures true top speed.","Only when flat sprints feel easy."],
+  // athletic · jump day
+  pogo:["Bounce on the balls of the feet, knees springy.","Quiet, rhythmic, elastic.","Ankles do the work."],
+  jumprope:["Light, quick, two-foot bounces.","Same elastic quality as pogos.","Great stage-1 substitute."],
+  linehop:["Small hops over a line: front/back, then side/side.","Fast and low.","Count contacts per direction."],
+  lateralhop:["Low side-to-side hops over a line.","Stick soft, leave quick.","Groin-friendly heights only."],
+  mbscoop:["Side-on to a wall, ball at the hip.","Rotate and throw THROUGH the wall.","Hips lead, arms finish."],
+  mbchest:["Ball at the chest, explode it forward.","Step into it.","Full intent every rep."],
+  mbslam:["Ball overhead, slam through the floor.","Whole body, exhale hard.","Pick up, reset, repeat."],
+  mboverhead:["Ball behind the head, throw up/back or forward.","Triple extension — ankles, knees, hips.","Distance = score."],
+  snapdown:["Reach tall, snap into an athletic quarter-squat.","Land loaded: hips back, chest up.","Teaches the landing before the jump."],
+  dropcatch:["Step off a low box, land and STICK.","Silent landing, instant stillness.","Build height slowly."],
+  hurdlehop:["Continuous hops over low hurdles.","Minimal ground time — leave before you settle.","Height comes later; speed first."],
+  lowbox:["Quick hop onto a low box, step down.","Fast up, soft down.","Step-down saves the tendon."],
+  boxjump:["Explode onto the box, land quietly in a quarter-squat.","STEP down, never jump down.","Full rest between reps."],
+  depthdrop:["Step off, absorb, stick — no rebound yet.","The landing is the exercise.","Precursor to depth jumps."],
+  squatjump:["Dip and jump max height, no arm swing.","Reset fully each rep.","Pure leg power."],
+  broadjump:["Swing, load, jump for distance.","Stick the landing — don't stumble out.","Measure it; chase it."],
+  vertjump:["Max vertical, full arm swing.","Land soft and centered.","One all-out rep at a time."],
+  lungeplyo:["Fencing lunge, then explode back to en garde.","The exact energy of a real touch.","Last unlock — earn it."],
+  splitjump:["Split-squat position, jump and switch legs.","Soft landings, tall torso.","Start small amplitude."],
   // delts / arms
   latraise:["Slight forward lean, soft elbows.","Raise to shoulder height, pinkies a touch up.","Lower slow, no swing."],
   latraise_cable:["Cable behind you, raise across the body.","To shoulder height, controlled.","Resist on the way down."],
@@ -360,9 +463,16 @@ const ACT = {
   ninja: { label:'Ninja / OCR',emoji:'🧗', fields:[
     {k:'duration', t:'num',  label:'Minutes', step:'5'},
     {k:'note',     t:'text', label:'Note (obstacles, focus)'} ]},
+  athletic: { label:'Athletic', emoji:'⚡', fields:[
+    {k:'focus',    t:'sel',  label:'Focus', opts:['plyo 1 · rhythm','plyo 2 · fast ground','plyo 3 · max intent','sprints','agility','med-ball','mixed'], def:'mixed'},
+    {k:'duration', t:'num',  label:'Minutes', step:'5'},
+    {k:'contacts', t:'num',  label:'Ground contacts (plyos — optional)', step:'5'},
+    {k:'note',     t:'text', label:'Note (quality, surface)'} ]},
 };
 const ACT_ORDER = ['run','swim','fence','ninja'];
+
 const WORKOUTS   = ['w1','w2','w3'];
+const ATHLETIC_DAYS = ['a1','a2'];
 
 const parseTime = t => { if(!t) return 0; const p=String(t).split(':').map(Number);
   if(p.some(isNaN)) return 0; if(p.length===3) return p[0]*3600+p[1]*60+p[2];
@@ -380,11 +490,43 @@ function saveActivity(a){ Store.update(s => {
 }); return a.id; }
 function deleteActivity(id){ Store.update(s => { s.activities = (s.activities||[]).filter(a=>a.id!==id); }); }
 
+// ---- in-progress workout (draft) helpers ----
+// A draft "has content" once any set has real numbers in it (bodyweight alone doesn't count).
+function draftHasContent(d){
+  if(!d || !d.exercises) return false;
+  return Object.values(d.exercises).some(ex => (ex.sets||[]).some(s => s.touched && (s.w!=='' || s.r!=='' || s.done)));
+}
+// null, or { day, date, label, sets } for the resume banners on home / day pages.
+function draftInfo(){
+  const d = Store.get().draft;
+  if(!draftHasContent(d)) return null;
+  const sets = Object.values(d.exercises).reduce((a,ex)=>a+(ex.sets||[]).filter(s=>s.touched&&(s.w!==''||s.r!==''||s.done)).length,0);
+  return { day:d.day, date:d.date, label: PROGRAM[d.day] ? PROGRAM[d.day].label : 'Workout', sets };
+}
+
+// last exercise actually logged for a program slot (sticky swaps):
+// scans this day's sessions newest-first for any of the slot's candidate keys.
+function lastSlotChoice(day, baseK, alts){
+  const cand = [baseK, ...(alts||[]).map(a=>a.k)];
+  const sess = Store.get().sessions.filter(s => s.day===day)
+    .sort((a,b) => a.date===b.date ? (b.id-a.id) : (a.date<b.date ? 1 : -1));
+  for (const s of sess){
+    const hit = cand.find(k => s.exercises && s.exercises[k]);
+    if (hit) return hit;
+  }
+  return null;
+}
+
 // suggest next lift in rotation (based on most recent lift session), user can override
 function nextWorkout(){
-  const ls = Store.get().sessions.slice().sort((a,b)=>a.date<b.date?1:-1)[0];
-  if(!ls || !WORKOUTS.includes(ls.day)) return 'w1';
+  const ls = Store.get().sessions.filter(s=>WORKOUTS.includes(s.day)).sort((a,b)=>a.date<b.date?1:-1)[0];
+  if(!ls) return 'w1';
   return WORKOUTS[(WORKOUTS.indexOf(ls.day)+1)%3];
+}
+// athletic rotation: suggest the opposite of the last athletic session
+function nextAthletic(){
+  const ls = Store.get().sessions.filter(s=>ATHLETIC_DAYS.includes(s.day)).sort((a,b)=>a.date<b.date?1:-1)[0];
+  return (!ls || ls.day==='a2') ? 'a1' : 'a2';
 }
 
 const INTENSITIES = [['easy','Easy'],['tempo','Tempo'],['threshold','Threshold'],['vo2','Intervals'],['sprint','Sprints'],['race','Race']];
@@ -405,6 +547,7 @@ function activitySummary(a){
   }
   if(a.type==='fence'){ return `${a.weapon||'épée'} \u00b7 ${a.duration||'\u2014'} min${a.bouts?` \u00b7 ${a.bouts} bouts`:''}`; }
   if(a.type==='ninja'){ return `${a.duration||'\u2014'} min`; }
+  if(a.type==='athletic'){ return `${a.focus||'mixed'} \u00b7 ${a.duration||'\u2014'} min${a.contacts?` \u00b7 ${a.contacts} contacts`:''}`; }
   return '';
 }
 // current week (Mon-first) with optional week offset
@@ -496,10 +639,12 @@ const GOALS = [
   {key:'run',   emoji:'\u{1F3C3}',       label:'Runs',  target:2},
   {key:'swim',  emoji:'\u{1F3CA}',       label:'Swims', target:1, soft:true, aim:'1\u20132'},
   {key:'fence', emoji:'\u{1F93A}',       label:'Fence', target:2},
+  {key:'athletic', emoji:'\u26A1',       label:'Athletic', target:1, soft:true, aim:'1\u20132'},
 ];
 function weekCounts(isos){
-  const set = new Set(isos); const c = {lift:0,run:0,swim:0,fence:0,ninja:0};
-  Store.get().sessions.forEach(s => { if(set.has(s.date) && WORKOUTS.includes(s.day)) c.lift++; });
+  const set = new Set(isos); const c = {lift:0,run:0,swim:0,fence:0,ninja:0,athletic:0};
+  Store.get().sessions.forEach(s => { if(!set.has(s.date)) return;
+    if(WORKOUTS.includes(s.day)) c.lift++; else if(ATHLETIC_DAYS.includes(s.day)) c.athletic++; });
   (Store.get().activities||[]).forEach(a => { if(set.has(a.date) && c[a.type]!==undefined) c[a.type]++; });
   return c;
 }

@@ -24,14 +24,27 @@
     <div class="dayttl" id="dayttl"></div>
   </div>
 
+  <div id="resume"></div>
   <div id="logged"></div>
 
   <div class="section-label">Add to this day</div>
   <div class="addlift">
     <button class="primary" id="startLift"></button>
-    <div class="wpick">
+    <div class="wpick" id="liftpick">
       <button data-w="w1">1</button><button data-w="w2">2</button><button data-w="w3">3</button>
     </div>
+  </div>
+  <div class="pvrow"><span>Preview</span>
+    <a data-p="w1">1</a><a data-p="w2">2</a><a data-p="w3">3</a>
+  </div>
+  <div class="addlift athrow">
+    <button class="primary" id="startAth"></button>
+    <div class="wpick" id="athpick">
+      <button data-w="a1">1</button><button data-w="a2">2</button>
+    </div>
+  </div>
+  <div class="pvrow"><span>Preview</span>
+    <a data-p="a1">1</a><a data-p="a2">2</a>
   </div>
   <div class="addsports" id="addsports"></div>
 </div>
@@ -50,7 +63,8 @@
     let html = '<div class="actlist">';
     sess.forEach(s => {
       const n = Object.keys(s.exercises || {}).length;
-      html += `<div class="actrow"><div class="act-emoji">\u{1F3CB}\uFE0F</div>
+      const semoji = (typeof ATHLETIC_DAYS !== 'undefined' && ATHLETIC_DAYS.includes(s.day)) ? '\u26A1' : '\u{1F3CB}\uFE0F';
+      html += `<div class="actrow"><div class="act-emoji">${semoji}</div>
         <div class="act-body"><b>${PROGRAM[s.day] ? PROGRAM[s.day].label : 'Lift'}</b><span>${n} exercise${n===1?'':'s'} logged</span></div>
         <button class="act-del" data-sid="${s.id}">\u2715</button></div>`;
     });
@@ -79,12 +93,34 @@
   }
   renderLogged();
 
+  // resume banner — an in-progress workout is autosaved; surface it
+  const di = draftInfo();
+  if (di) {
+    resume.innerHTML =
+      `<a class="resume" href="workout.html?day=${di.day}&date=${di.date}">
+         <div class="resume-body"><b>Resume ${di.label}</b><span>${di.sets} set${di.sets===1?'':'s'} saved · ${prettyDate(di.date)}</span></div>
+         <span class="resume-caret">›</span></a>`;
+  }
+
+  // preview — read-only look at any workout, touches nothing
+  document.querySelectorAll('.pvrow a').forEach(a =>
+    a.href = `workout.html?day=${a.dataset.p}&preview=1&date=${date}`);
+
   // add lift — suggested next in rotation, overridable
   const sugg = nextWorkout();
   startLift.innerHTML = `Start ${PROGRAM[sugg].label} <span class="sugg-tag">suggested</span>`;
   startLift.onclick = () => location.href = `workout.html?day=${sugg}&date=${date}`;
-  document.querySelectorAll('.wpick button').forEach(b => {
+  document.querySelectorAll('#liftpick button').forEach(b => {
     if (b.dataset.w === sugg) b.classList.add('on');
+    b.onclick = () => location.href = `workout.html?day=${b.dataset.w}&date=${date}`;
+  });
+
+  // athletic — suggested opposite of last athletic session, overridable
+  const asugg = nextAthletic();
+  startAth.innerHTML = `Start ${PROGRAM[asugg].label} <span class="sugg-tag">suggested</span>`;
+  startAth.onclick = () => location.href = `workout.html?day=${asugg}&date=${date}`;
+  document.querySelectorAll('#athpick button').forEach(b => {
+    if (b.dataset.w === asugg) b.classList.add('on');
     b.onclick = () => location.href = `workout.html?day=${b.dataset.w}&date=${date}`;
   });
 
