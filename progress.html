@@ -22,8 +22,15 @@
   <div id="bwCard"></div>
   <div class="section-label">This week · training load</div>
   <div id="loadCard"></div>
+  <div class="section-label">Load trend · 8 weeks</div>
+  <div id="trendCard"></div>
   <div class="section-label">Estimated 1RM</div>
+  <div class="liftpickwrap"><select id="liftPick"></select></div>
   <div id="oneRM"></div>
+  <div class="section-label">Recent PRs</div>
+  <div id="prCard"></div>
+  <div class="section-label">Recent sessions</div>
+  <div id="histCard"></div>
   <div class="links"><a href="index.html">Back</a></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -68,15 +75,64 @@
          ${monoNote ? `<div class="rm-meta">${monoNote}</div>` : ''}</div>`;
   }
 
-  let html = '';
-  PROGRESS_LIFTS.forEach(({k, n}) => {
-    const series = e1rmSeries(k), vals = series.map(x => x.v);
-    if (!vals.length) { html += `<div class="rm"><div class="rm-h"><span class="rm-n">${n}</span><span class="rm-v off">—</span></div><div class="rm-meta">no sets logged</div></div>`; return; }
-    const cur = vals[vals.length-1], best = Math.max(...vals), basis = series[series.length-1].basis;
-    const tag = k === 'pullup' ? ` <em>${basis === 'total' ? 'bw + added' : 'added'}</em>` : '';
-    html += `<div class="rm"><div class="rm-h"><span class="rm-n">${n}${tag}</span><span class="rm-v">${cur}</span></div><div class="rm-spark">${spark(vals)}</div><div class="rm-meta">est. 1RM · best ${best} · ${vals.length} sessions</div></div>`;
-  });
-  oneRM.innerHTML = html;
+  // ---- load trend, last 8 weeks ----
+  const trend = loadTrend(8), tvals = trend.map(t => t.total);
+  if (!tvals.some(v => v)) {
+    trendCard.innerHTML = `<div class="rm"><div class="rm-meta">no rated sessions yet \u2014 the trend fills in as you rate</div></div>`;
+  } else {
+    const mxT = Math.max(...tvals) || 1;
+    trendCard.innerHTML =
+      `<div class="rm"><div class="bars">${trend.map(t => {
+        const h = Math.round((t.total / mxT) * 100);
+        const lbl = t.offset === 0 ? 'now' : t.offset;
+        return `<div class="barcol"><div class="barwrap"><div class="bar${t.offset===0?' cur':''}" style="height:${Math.max(h,2)}%"></div></div><span>${lbl}</span></div>`;
+      }).join('')}</div>
+      <div class="rm-meta">weekly load (AU) \u00b7 peak ${Math.max(...tvals)}</div></div>`;
+  }
+
+  // ---- estimated 1RM, any lift you've logged ----
+  const lifts = loggedLifts();
+  if (!lifts.length) {
+    document.querySelector('.liftpickwrap').hidden = true;
+    oneRM.innerHTML = `<div class="rm"><div class="rm-meta">no lifts logged yet</div></div>`;
+  } else {
+    const pref = PROGRESS_LIFTS.map(x => x.k).find(k => lifts.some(l => l.k === k)) || lifts[0].k;
+    liftPick.innerHTML = lifts.map(l => `<option value="${l.k}"${l.k===pref?' selected':''}>${l.n} (${l.count})</option>`).join('');
+    const drawLift = k => {
+      const series = e1rmSeries(k), vals = series.map(x => x.v);
+      if (!vals.length) { oneRM.innerHTML = `<div class="rm"><div class="rm-meta">no sets logged</div></div>`; return; }
+      const cur = vals[vals.length-1], best = Math.max(...vals), basis = series[series.length-1].basis;
+      const tag = k === 'pullup' ? ` <em>${basis === 'total' ? 'bw + added' : 'added'}</em>` : '';
+      oneRM.innerHTML = `<div class="rm"><div class="rm-h"><span class="rm-n">${exName(k)}${tag}</span><span class="rm-v">${cur}</span></div>
+        <div class="rm-spark">${spark(vals)}</div>
+        <div class="rm-meta">est. 1RM \u00b7 best ${best} \u00b7 ${vals.length} sessions</div></div>`;
+    };
+    liftPick.onchange = () => drawLift(liftPick.value);
+    drawLift(pref);
+  }
+
+  // ---- recent PRs ----
+  const prs = recentPRs(6);
+  prCard.innerHTML = prs.length
+    ? `<div class="actlist">${prs.map(p =>
+        `<div class="actrow"><div class="act-emoji">\u{1F3C6}</div><div class="act-body"><b>${p.n}</b>
+          <span>est. 1RM ${p.v} \u00b7 up from ${p.prev} \u00b7 ${prettyDate(p.date)}</span></div></div>`).join('')}</div>`
+    : `<div class="rm"><div class="rm-meta">PRs show up here once you beat a previous best</div></div>`;
+
+  // ---- recent sessions ----
+  const hist = trainingHistory(12);
+  histCard.innerHTML = hist.length
+    ? `<div class="actlist">${hist.map(h => {
+        const bits = [h.detail];
+        if (h.srpe) bits.push(`RPE ${h.srpe}`);
+        if (h.minutes) bits.push(`${h.minutes} min`);
+        if (h.load) bits.push(`<b>${h.load} AU</b>`);
+        if (h.deload) bits.push('deload');
+        else if (h.readiness && h.readiness !== 'normal') bits.push(READINESS[h.readiness] ? READINESS[h.readiness].label.toLowerCase() : h.readiness);
+        return `<div class="actrow"><div class="act-emoji">${h.emoji}</div><div class="act-body"><b>${h.label}</b>
+          <span>${prettyDate(h.date)} \u00b7 ${bits.filter(Boolean).join(' \u00b7 ')}</span></div></div>`;
+      }).join('')}</div>`
+    : `<div class="rm"><div class="rm-meta">nothing logged yet</div></div>`;
   });
 </script>
 </body>

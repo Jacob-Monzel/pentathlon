@@ -388,6 +388,68 @@ function renderSrpePicker(el, current, onPick) {
   });
 }
 
+// ---- analytics helpers -----------------------------------------------------
+// name for any exercise key, main or alternate, anywhere in the program
+const EX_NAMES = (() => {
+  const m = {};
+  Object.values(PROGRAM).forEach(d => d.ex.forEach(e => {
+    m[e.k] = e.n; (e.alts || []).forEach(a => { if (!m[a.k]) m[a.k] = a.n; });
+  }));
+  return m;
+})();
+const exName = k => EX_NAMES[k] || k;
+
+// every lift you've actually logged weight on, most-trained first
+function loggedLifts() {
+  const c = {};
+  Store.get().sessions.forEach(s => Object.entries(s.exercises || {}).forEach(([k, e]) => {
+    if ((e.sets || []).some(x => x.w)) c[k] = (c[k] || 0) + 1;
+  }));
+  return Object.entries(c).map(([k, n]) => ({ k, n: exName(k), count: n }))
+    .sort((a, b) => b.count - a.count || a.n.localeCompare(b.n));
+}
+// every time an est-1RM beat everything before it
+function recentPRs(limit = 8) {
+  const out = [];
+  loggedLifts().forEach(({ k, n }) => {
+    let best = 0;
+    e1rmSeries(k).forEach(p => {
+      if (p.v > best) { if (best > 0) out.push({ k, n, date: p.date, v: p.v, prev: best }); best = p.v; }
+    });
+  });
+  return out.sort((a, b) => a.date < b.date ? 1 : -1).slice(0, limit);
+}
+// weekly total load for the last n weeks, oldest first
+function loadTrend(n = 8) {
+  const out = [];
+  for (let o = -(n - 1); o <= 0; o++) {
+    const days = weekDays(o).map(d => d.iso);
+    const w = weekLoad(days);
+    out.push({ offset: o, total: w.total, monotony: w.monotony, start: days[0] });
+  }
+  return out;
+}
+// merged reverse-chronological log of everything
+function trainingHistory(limit = 14) {
+  const items = [];
+  Store.get().sessions.forEach(s => items.push({
+    kind: 'lift', date: s.date, id: s.id,
+    label: PROGRAM[s.day] ? PROGRAM[s.day].label : 'Workout',
+    emoji: ATHLETIC_DAYS.includes(s.day) ? '\u26A1' : '\u{1F3CB}\uFE0F',
+    load: loadOfSession(s), srpe: s.srpe, minutes: sessionMinutes(s),
+    readiness: s.readiness, deload: !!s.deload,
+    detail: (() => { const n = Object.keys(s.exercises || {}).length; return `${n} exercise${n === 1 ? '' : 's'}`; })(),
+  }));
+  (Store.get().activities || []).forEach(a => items.push({
+    kind: a.type, date: a.date, id: a.id,
+    label: ACT[a.type] ? ACT[a.type].label : a.type,
+    emoji: ACT[a.type] ? ACT[a.type].emoji : '\u2022',
+    load: loadOfActivity(a), srpe: a.srpe, minutes: actMinutes(a),
+    detail: activitySummary(a),
+  }));
+  return items.sort((x, y) => x.date === y.date ? ((y.id > x.id) ? 1 : -1) : (x.date < y.date ? 1 : -1)).slice(0, limit);
+}
+
 function bodyweightLog() {
   return Store.get().sessions.filter(s => s.bodyweight)
     .map(s => ({ date:s.date, bw:+s.bodyweight }))
