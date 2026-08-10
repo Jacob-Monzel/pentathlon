@@ -54,11 +54,10 @@
   const params = new URLSearchParams(location.search);
   const day = params.get('day') || 'w1';
   const logDate = params.get('date') || todayISO();
-  const isPreview = params.get('preview') === '1';
   const backToDay = () => location.href = 'day.html?date=' + logDate;
   const plan = PROGRAM[day];
   if (!plan) location.replace('index.html');
-  wtitle.textContent = (isPreview ? 'Preview · ' : '') + plan.label;
+  wtitle.textContent = plan.label;
 
   const slots = plan.ex.map(e => ({ ...e, baseK: e.k, baseN: e.n }));
   const slotOpts = slot => [{k:slot.baseK, n:slot.baseN}, ...(slot.alts||[])];
@@ -88,38 +87,6 @@
     return 'last · ' + ps.map(s => `${s.w||0}×${s.r||0}`).join(', ');
   }
 
-  // ---------- PREVIEW MODE — read-only, touches no data, no draft ----------
-  if (isPreview) {
-    applySticky(null);
-    bwrow.style.display = 'none';
-    wclock.style.display = 'none';
-    rest.style.display = 'none';
-    wlist.innerHTML = '';
-    slots.forEach((slot, idx) => {
-      const sg = suggest(slot.k, slot);
-      const sgTxt = (sg && sg.w) ? `suggested ${sg.w}${sg.tag && sg.tag !== 'same' && sg.tag !== 'hold' ? ' · ' + sg.tag : ''}` : '';
-      const alts = slotOpts(slot).filter(o => o.k !== slot.k)
-        .map(o => (o.k === slot.baseK ? '★ ' : '') + o.n).join(' · ');
-      const card = document.createElement('div');
-      card.className = 'exc';
-      card.innerHTML =
-        `<div class="exn-row"><div class="exn">${isRx(slot)?'★ ':''}${slot.n}</div><div class="exn-btns">${CUES[slot.k]?`<button class="infobtn" data-idx="${idx}">how</button>`:''}</div></div>
-         ${CUES[slot.k]?`<div class="cuebox" id="cue-${idx}" hidden><ul>${CUES[slot.k].map(c=>`<li>${c}</li>`).join('')}</ul></div>`:''}
-         <div class="exmeta">${meta(slot)}</div>
-         ${rxNote(slot)}
-         <div class="prev">${prevLine(slot)}${sgTxt?` · <b>${sgTxt}</b>`:''}</div>
-         ${alts?`<div class="exmeta">swaps: ${alts}</div>`:''}`;
-      wlist.appendChild(card);
-    });
-    wlist.querySelectorAll('.infobtn').forEach(b => b.onclick = () => {
-      const c = document.getElementById('cue-' + b.dataset.idx); if (c) c.hidden = !c.hidden;
-    });
-    finish.textContent = 'Start this workout';
-    finish.onclick = () => location.href = `workout.html?day=${day}&date=${logDate}`;
-    exit.onclick = backToDay;
-    return;
-  }
-
   // ---------- resume guard — never silently clobber another in-progress workout ----------
   {
     const d = Store.get().draft;
@@ -132,11 +99,12 @@
     }
   }
 
-  let draft = (() => { const d = Store.get().draft; return (d && d.day === day && d.date === logDate) ? d : { day, date: logDate, startedAt: Date.now(), exercises: {} }; })();
-  if (!draft.startedAt) draft.startedAt = Date.now();
+  let draft = (() => { const d = Store.get().draft; return (d && d.day === day && d.date === logDate) ? d : { day, date: logDate, startedAt: null, exercises: {} }; })();
+  if (!draftHasContent(draft)) draft.startedAt = null;   // opened-but-untouched never carries a running clock
   applySticky(k => draft.exercises[k] && draft.exercises[k].sets && draft.exercises[k].sets.length);
   const exState = k => (draft.exercises[k] = draft.exercises[k] || { sets: [] });
   const save = () => Store.update(s => { s.draft = draft; });
+  const anchorClock = () => { if (!draft.startedAt) { draft.startedAt = Date.now(); renderClock(); } };   // starts on first real activity
   const curSlot = k => slots.find(s => s.k === k);
 
   // bodyweight
@@ -204,13 +172,13 @@
       const set = exState(k).sets[i];
       const sw = row.querySelector('.sw'), sr = row.querySelector('.sr'),
             srpe = row.querySelector('.srpe'), chk = row.querySelector('.chk');
-      sw.oninput = () => { set.w = sw.value; set.touched = true; if (i === 0 && curSlot(k).t === 'top') refillBackoff(k); save(); };
-      sr.oninput = () => { set.r = sr.value; set.touched = true; save(); };
-      if (srpe) srpe.oninput = () => { set.rpe = srpe.value; set.touched = true; save(); };
+      sw.oninput = () => { set.w = sw.value; set.touched = true; anchorClock(); if (i === 0 && curSlot(k).t === 'top') refillBackoff(k); save(); };
+      sr.oninput = () => { set.r = sr.value; set.touched = true; anchorClock(); save(); };
+      if (srpe) srpe.oninput = () => { set.rpe = srpe.value; set.touched = true; anchorClock(); save(); };
       chk.onclick = () => {
         set.done = !set.done;
         if (set.done) {
-          set.touched = true; if (sw.value) set.w = sw.value; if (sr.value) set.r = sr.value;
+          set.touched = true; anchorClock(); if (sw.value) set.w = sw.value; if (sr.value) set.r = sr.value;
           startRest(restSecFor(curSlot(k)));
           flagPR(k, set, row);
         } else { row.classList.remove('pr'); }
@@ -292,7 +260,7 @@
   }
 
   // ---------- workout clock — anchored to draft.startedAt, survives reloads ----------
-  const renderClock = () => { wclock.textContent = fmtT(Math.floor((Date.now() - draft.startedAt) / 1000)); };
+  const renderClock = () => { wclock.textContent = fmtT(draft.startedAt ? Math.floor((Date.now() - draft.startedAt) / 1000) : 0); };
   setInterval(renderClock, 1000); renderClock();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderRest(); renderClock(); } });
   tickRest();
@@ -310,7 +278,7 @@
     b.classList.add('sel'); flareVal = b.dataset.f;
   });
 
-  exit.onclick = backToDay;
+  exit.onclick = () => { if (!draftHasContent(draft)) Store.update(s => { s.draft = null; }); backToDay(); };
   finish.onclick = () => sheet.classList.add('on');
   fbCancel.onclick = () => sheet.classList.remove('on');
   fbSave.onclick = () => {

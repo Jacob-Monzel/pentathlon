@@ -299,13 +299,6 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 .resume-caret{color:var(--accent);font-size:20px;font-weight:700}
 .resume:active{transform:scale(.99)}
 
-/* ---- workout preview picker ---- */
-.pvrow{display:flex;align-items:center;gap:5px;margin-top:8px;justify-content:flex-end}
-.pvrow span{font-family:var(--mono);font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;margin-right:5px}
-.pvrow a{width:42px;text-align:center;padding:8px 0;border-radius:11px;border:1px solid var(--line);background:var(--surface);
-  color:var(--muted);text-decoration:none;font-weight:700;font-size:14px}
-.pvrow a:active{background:var(--accent-soft);color:var(--accent)}
-
 /* ---- prescribed-exercise (★) nudge ---- */
 .rxnote{font-size:11px;color:#B45309;font-family:var(--mono);margin-top:3px}
 .c-athletic{background:#FEF6E0;border-color:#F3E2A9;color:#8A6A0B}
