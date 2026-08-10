@@ -214,6 +214,40 @@ function prevSets(day, k) {
   const e = ls && ls.exercises && ls.exercises[k];
   return e && e.sets ? e.sets : null;
 }
+// ---- pre-workout check-in: only inputs that actually move a lever ----
+// readiness scales load; prog=false pauses progression for the day.
+const READINESS = {
+  fresh:  { label:'Fresh',  f:1,    prog:true  },
+  normal: { label:'Normal', f:1,    prog:true  },
+  tired:  { label:'Tired',  f:0.9,  prog:false },
+  cooked: { label:'Cooked', f:0.8,  prog:false },
+};
+const READY_ORDER = ['fresh','normal','tired','cooked'];
+// joint status routes exercise selection; never a diagnosis — Derek's call governs.
+const JOINTS = {
+  ok:     { label:'Good',    note:'' },
+  niggle: { label:'Niggle',  note:'Niggle logged \u00b7 stay in pain-free range' },
+  sore:   { label:'Sore',    note:'Sore \u00b7 prefer the rehab-friendly swap, ease the load' },
+  pain:   { label:'Painful', note:'Painful \u00b7 pain-free ROM only today \u2014 flag it to Derek' },
+};
+const JOINT_ORDER = ['ok','niggle','sore','pain'];
+const TIMECAP = {
+  full:  { label:'Full',    pri:3 },
+  short: { label:'~40 min', pri:2 },
+  min:   { label:'~20 min', pri:1 },
+};
+const TIME_ORDER = ['full','short','min'];
+// priority 1 = always do (main lifts + knee rehab), 2 = core work, 3 = accessory
+function slotPriority(ex) {
+  if (ex.t === 'top' || ex.t === 'pullup') return 1;
+  if (['wallsq','kneeext','legpress_slow','goblet_slow','spanishsq'].includes(ex.k)) return 1;
+  if (ex.rpe || ex.tempo) return 2;
+  return 3;
+}
+// a session whose numbers were deliberately eased — never anchors future suggestions
+const isEasedSession = s => !!(s && (s.reduced || s.deload ||
+  (s.readiness && READINESS[s.readiness] && !READINESS[s.readiness].prog)));
+
 function topHistory(k) {
   const out = [];
   Store.get().sessions.forEach(s => {
@@ -228,7 +262,7 @@ function anchorSession(k) {
   const sess = Store.get().sessions
     .filter(s => s.exercises && s.exercises[k] && s.exercises[k].sets && s.exercises[k].sets[0] && s.exercises[k].sets[0].w)
     .sort((a,b) => a.date === b.date ? ((b.id||0)-(a.id||0)) : (a.date < b.date ? 1 : -1));
-  const s = sess.find(x => !x.reduced) || sess[0];
+  const s = sess.find(x => !isEasedSession(x)) || sess[0];
   return s ? { date:s.date, bw:s.bodyweight, sets:s.exercises[k].sets } : null;
 }
 function e1rmSeries(k) {
@@ -268,14 +302,75 @@ function suggest(k, ex) {
     const target = ex.t === 'pullup' ? topRange : (nums[0] || 4);
     const metReps = (+top.r) >= target;
     const okRpe = ex.rpe ? (top.rpe ? (+top.rpe) <= ex.rpe : true) : true;
-    return (metReps && okRpe) ? { w: round5((+top.w) + inc), tag: '+' + inc } : { w: +top.w || '', tag: 'hold' };
+    return (metReps && okRpe)
+      ? { w: round5((+top.w) + inc), base: +top.w || '', tag: '+' + inc }
+      : { w: +top.w || '', base: +top.w || '', tag: 'hold' };
   }
 
   // work lifts — double progression: add weight only when EVERY working set hit the top of the range
   const working = a.sets.filter(s => s.w !== '' || s.r !== '');
   const allTop = working.length > 0 && working.every(s => (+s.r) >= topRange);
-  return allTop ? { w: round5((+top.w || 0) + 5), tag: '+5' } : { w: +top.w || '', tag: 'same' };
+  return allTop
+    ? { w: round5((+top.w || 0) + 5), base: +top.w || '', tag: '+5' }
+    : { w: +top.w || '', base: +top.w || '', tag: 'same' };
 }
+// ---- reactive deload detection --------------------------------------------
+// Fires only when fatigue markers CLUSTER (>=2), never on a schedule. Evidence
+// favours as-needed deloads over calendar ones; a deload taken while fresh costs
+// you progress. This informs, it never forces — programming stays yours/Derek's.
+const DELOAD = { loadF: 0.9, setF: 0.5, minGapDays: 21, minSessions: 6 };
+const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+
+function lastDeloadDate() {
+  const d = Store.get().sessions.filter(s => s.deload).sort((a,b) => a.date < b.date ? 1 : -1)[0];
+  return d ? d.date : null;
+}
+function fatigueSignals() {
+  const sess = Store.get().sessions.filter(s => WORKOUTS.includes(s.day))
+    .sort((a,b) => a.date === b.date ? ((a.id||0)-(b.id||0)) : (a.date < b.date ? -1 : 1));
+  const out = { reasons: [], recommend: false, enough: sess.length >= DELOAD.minSessions };
+  if (!out.enough) return out;
+  const recent = sess.slice(-6);
+
+  // 1. RPE creep — same-or-lighter load feeling harder is the classic fatigue marker
+  let creep = 0;
+  ['bench','incline','ohp','pullup','boxsq'].forEach(k => {
+    const h = topHistory(k).filter(e => e.rpe && e.w);
+    if (h.length < 4) return;
+    const late = h.slice(-2), early = h.slice(-4, -2);
+    const avg = arr => arr.reduce((a,e) => a + (+e.rpe), 0) / arr.length;
+    const wAvg = arr => arr.reduce((a,e) => a + (+e.w), 0) / arr.length;
+    if (avg(late) - avg(early) >= 1 && wAvg(late) <= wAvg(early) * 1.02) creep++;
+  });
+  if (creep >= 2) out.reasons.push(`${creep} main lifts feeling harder at the same load`);
+
+  // 2. Stalled estimated strength on the tracked lifts
+  let stalls = 0;
+  PROGRESS_LIFTS.forEach(({k}) => {
+    const v = e1rmSeries(k).map(x => x.v);
+    if (v.length < 4) return;
+    if (Math.max(...v.slice(-2)) <= Math.max(...v.slice(-4, -2))) stalls++;
+  });
+  if (stalls >= 3) out.reasons.push(`${stalls} tracked lifts flat or down`);
+
+  // 3. Self-reported readiness trending low
+  const low = recent.slice(-4).filter(s => s.readiness === 'tired' || s.readiness === 'cooked').length;
+  if (low >= 2) out.reasons.push('showing up tired repeatedly');
+
+  // 4. Joints not clearing between sessions
+  const knees = recent.slice(-3).map(s => s.feedback && s.feedback.knee).filter(v => typeof v === 'number');
+  if (knees.length >= 2 && knees.reduce((a,b) => a+b, 0) / knees.length >= 5) out.reasons.push('knee scores staying high');
+  const today = todayISO();
+  const flares = (Store.get().episodes || []).filter(e => daysBetween(e.date, today) <= 14).length;
+  if (flares >= 2) out.reasons.push(`${flares} flares in the last 2 weeks`);
+
+  const last = lastDeloadDate();
+  out.daysSince = last ? daysBetween(last, today) : null;
+  const gapOk = !last || out.daysSince >= DELOAD.minGapDays;
+  out.recommend = out.reasons.length >= 2 && gapOk;
+  return out;
+}
+
 function bodyweightLog() {
   return Store.get().sessions.filter(s => s.bodyweight)
     .map(s => ({ date:s.date, bw:+s.bodyweight }))

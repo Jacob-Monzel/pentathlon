@@ -28,13 +28,12 @@
   <input id="bw" inputmode="decimal" placeholder="—">
   <span class="bw-unit">lbs</span>
 </div>
-<div class="ready-row" id="readyrow">
-  <span class="ready-label">Today</span>
-  <div class="seg" id="readySeg">
-    <button data-r="0">Normal</button>
-    <button data-r="1">Reduced</button>
-  </div>
-  <span class="ready-hint" id="readyHint"></span>
+<div id="deloadBanner"></div>
+<div class="checkin" id="checkin">
+  <div class="ci-row"><span class="ci-q">How do you feel?</span><div class="seg" id="segReady"></div></div>
+  <div class="ci-row"><span class="ci-q">Knee / groin</span><div class="seg" id="segJoint"></div></div>
+  <div class="ci-row"><span class="ci-q">Time today</span><div class="seg" id="segTime"></div></div>
+  <div class="ci-note" id="ciNote"></div>
 </div>
 <div class="wlist" id="wlist"></div>
 <button class="finishbtn" id="finish">Finish &amp; feedback</button>
@@ -119,18 +118,35 @@
   bw.value = draft.bodyweight || latestBodyweight() || '';
   bw.oninput = () => { draft.bodyweight = bw.value; save(); };
 
-  // Reduced day: seeded suggestions drop ~10% (untouched fields only); the session is tagged
-  // so it never anchors future suggestions. seedW is the single source of the shown/seeded number.
-  const seedW = w => (draft.reduced && w) ? round5(+w * 0.9) : w;
+  // ---------- check-in: readiness scales load, joints route swaps, time trims scope ----------
+  if (!draft.readiness) draft.readiness = 'normal';
+  if (!draft.joints) draft.joints = 'ok';
+  if (!draft.timecap) draft.timecap = 'full';
+  const tier = () => READINESS[draft.readiness] || READINESS.normal;
+  // effective target for a slot: pause progression when not fresh, scale by tier, ease again on a deload
+  const targetW = sg => {
+    if (!sg) return '';
+    const raw = tier().prog ? sg.w : (sg.base || sg.w);
+    if (!raw) return '';
+    const f = tier().f * (draft.deload ? DELOAD.loadF : 1);
+    return round5(+raw * f);
+  };
+  const seedW = w => w;   // seeding now goes through targetW
+  const setCountFor = slot => {
+    let n = (prevSets(day, slot.k) || []).length || slot.sets;
+    if (draft.deload) n = Math.max(slot.t === 'top' || slot.t === 'pullup' ? 2 : 1, Math.round(n * DELOAD.setF));
+    else if (draft.readiness === 'cooked') n = Math.max(1, n - 1);
+    return n;
+  };
+  const inScope = slot => slotPriority(slot) <= TIMECAP[draft.timecap].pri;
 
   function seedSlot(slot) {
     const st = exState(slot.k);
     if (st.sets.length) return;
     const sg = suggest(slot.k, slot);
     st.sugg = sg || null;
-    const base = sg ? sg.w : '';
-    const w0 = seedW(base);
-    const n = (prevSets(day, slot.k) || []).length || slot.sets;
+    const w0 = targetW(sg);
+    const n = setCountFor(slot);
     for (let i = 0; i < n; i++) {
       let w = '';
       if (slot.t === 'top' || slot.t === 'pullup') w = i === 0 ? (w0 || '') : '';
@@ -140,41 +156,70 @@
   }
   slots.forEach(seedSlot); save();
 
-  // re-seed untouched weights when the readiness toggle flips (never overwrites typed values)
-  function applyReadiness() {
+  // re-apply the plan when any check-in answer changes (never overwrites typed values)
+  function applyPlan() {
     slots.forEach(slot => {
       const st = exState(slot.k), sg = st.sugg;
+      const want = setCountFor(slot);
+      while (st.sets.length > want && !st.sets[st.sets.length-1].touched) st.sets.pop();
+      while (st.sets.length < want) st.sets.push({ w:'', r:'', rpe:'', done:false, touched:false });
       if (!sg || !sg.w) return;
-      const target = seedW(sg.w) || '';
+      const t = targetW(sg) || '';
       st.sets.forEach((set, i) => {
         if (set.touched) return;
         const seedable = (slot.t === 'top' || slot.t === 'pullup') ? i === 0 : true;
-        if (seedable) set.w = target === 0 ? '' : target;
+        if (seedable) set.w = t === 0 ? '' : t;
       });
     });
   }
-  function renderReady() {
-    readySeg.querySelectorAll('button').forEach(b => b.classList.toggle('on', (b.dataset.r === '1') === !!draft.reduced));
-    readyHint.textContent = draft.reduced ? 'targets eased · won\u2019t affect tracking' : '';
+
+  function renderCheckin() {
+    const seg = (el, order, cfg, cur, cb) => {
+      el.innerHTML = order.map(k => `<button data-k="${k}" class="${k===cur?'on':''}">${cfg[k].label}</button>`).join('');
+      el.querySelectorAll('button').forEach(b => b.onclick = () => { if (b.dataset.k !== cur) cb(b.dataset.k); });
+    };
+    seg(segReady, READY_ORDER, READINESS, draft.readiness, v => { draft.readiness = v; applyPlan(); save(); renderCheckin(); render(); });
+    seg(segJoint, JOINT_ORDER, JOINTS, draft.joints, v => { draft.joints = v; save(); renderCheckin(); render(); });
+    seg(segTime, TIME_ORDER, TIMECAP, draft.timecap, v => { draft.timecap = v; applyPlan(); save(); renderCheckin(); render(); });
+    const bits = [];
+    if (!tier().prog) bits.push(`targets eased \u00b7 won\u2019t affect tracking`);
+    if (draft.deload) bits.push('deload \u00b7 sets cut, stop 2+ reps shy');
+    if (JOINTS[draft.joints].note) bits.push(JOINTS[draft.joints].note);
+    if (draft.timecap !== 'full') bits.push('extras marked optional');
+    ciNote.innerHTML = bits.length ? bits.join(' \u00b7 ') : '';
+    ciNote.className = 'ci-note' + (draft.joints === 'pain' ? ' warn' : '');
   }
-  readySeg.querySelectorAll('button').forEach(b => b.onclick = () => {
-    const now = b.dataset.r === '1';
-    if (now === !!draft.reduced) return;
-    draft.reduced = now; applyReadiness(); save(); renderReady(); render();
-  });
-  renderReady();
+
+  // ---------- reactive deload: offered only when fatigue markers cluster ----------
+  function renderDeload() {
+    if (draft.deload) {
+      deloadBanner.innerHTML = `<div class="dbanner on"><div><b>Deload session</b><span>same lifts \u00b7 half the sets \u00b7 lighter \u00b7 stop well shy of failure</span></div><button id="dOff">Undo</button></div>`;
+      dOff.onclick = () => { draft.deload = false; applyPlan(); save(); renderDeload(); renderCheckin(); render(); };
+      return;
+    }
+    const f = fatigueSignals();
+    if (!f.recommend) { deloadBanner.innerHTML = ''; return; }
+    deloadBanner.innerHTML = `<div class="dbanner"><div><b>Fatigue is stacking up</b><span>${f.reasons.join(' \u00b7 ')}</span></div><button id="dOn">Deload</button></div>`;
+    dOn.onclick = () => { draft.deload = true; applyPlan(); save(); renderDeload(); renderCheckin(); render(); };
+  }
 
   function render() {
     wlist.innerHTML = '';
     slots.forEach((slot, idx) => {
       const st = exState(slot.k);
       const sg = st.sugg;
-      const shownW = (sg && sg.w) ? (seedW(sg.w) || sg.w) : '';
+      const shownW = targetW(sg);
       let sgTxt = '';
       if (sg && sg.tag === 'time') sgTxt = shownW ? `suggested ${shownW} · longer hold` : 'aim for a longer hold';
-      else if (shownW) sgTxt = `suggested ${shownW}` + (draft.reduced ? ' · reduced' : (sg.tag && sg.tag !== 'same' && sg.tag !== 'hold' ? ' · ' + sg.tag : ''));
+      else if (shownW) {
+        const eased = !tier().prog || draft.deload;
+        sgTxt = `suggested ${shownW}` + (eased ? ' · eased' : (sg.tag && sg.tag !== 'same' && sg.tag !== 'hold' ? ' · ' + sg.tag : ''));
+      }
       const bs = (slot.t === 'top' || slot.t === 'pullup' || slot.rpe) ? bestSet(slot.k) : null;
       const bestTxt = bs ? `best ${bs.added ? '+' : ''}${bs.w}\u00d7${bs.r} · ${bs.ago === 0 ? 'current best' : bs.ago + ' session' + (bs.ago > 1 ? 's' : '') + ' ago'}` : '';
+      const optional = !inScope(slot);
+      const jointHint = (draft.joints === 'sore' || draft.joints === 'pain') && slotPriority(slot) === 1 && (slot.alts||[]).length
+        ? `<div class="rxnote">${draft.joints === 'pain' ? 'painful today — pain-free range only' : 'sore today — a lighter swap is fine'}</div>` : '';
       const prev = prevSets(day, slot.k) || [];   // last session's sets → per-row ghost placeholders
       const repHint = slot.reps.replace(/ \/ (side|hand)/,'');
       let rows = `<div class="seth"><span>set</span><span>weight</span><span>reps</span>${hasRpe(slot)?'<span>rpe</span>':''}<span></span></div>`;
@@ -193,13 +238,14 @@
       const swapMenu = `<div class="swapmenu" id="sm-${idx}" hidden>` +
         opts.map(o => `<button data-idx="${idx}" data-k="${o.k}" data-n="${o.n}">${o.k===slot.baseK?'★ ':''}${o.n}</button>`).join('') + `</div>`;
       const card = document.createElement('div');
-      card.className = 'exc';
+      card.className = 'exc' + (optional ? ' optional' : '');
       card.innerHTML =
-        `<div class="exn-row"><div class="exn">${isRx(slot)?'★ ':''}${slot.n}</div><div class="exn-btns">${CUES[slot.k]?`<button class="infobtn" data-idx="${idx}">how</button>`:''}<button class="swapbtn" data-idx="${idx}">swap</button></div></div>
+        `<div class="exn-row"><div class="exn">${isRx(slot)?'★ ':''}${slot.n}${optional?'<span class="opttag">optional</span>':''}</div><div class="exn-btns">${CUES[slot.k]?`<button class="infobtn" data-idx="${idx}">how</button>`:''}<button class="swapbtn" data-idx="${idx}">swap</button></div></div>
          ${CUES[slot.k]?`<div class="cuebox" id="cue-${idx}" hidden><ul>${CUES[slot.k].map(c=>`<li>${c}</li>`).join('')}</ul></div>`:''}
          ${swapMenu}
          <div class="exmeta">${meta(slot)}</div>
          ${rxNote(slot)}
+         ${jointHint}
          <div class="prev">${prevLine(slot)}${sgTxt?` · <b>${sgTxt}</b>`:''}</div>
          ${bestTxt?`<div class="best">${bestTxt}</div>`:''}
          <div class="sets">${rows}</div>
@@ -334,13 +380,15 @@
     });
     const note = fbNote.value.trim();
     Store.update(s => {
-      s.sessions.push({ id: Date.now(), day, date: logDate, bodyweight: draft.bodyweight ? +draft.bodyweight : null, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, ...(draft.reduced ? { reduced: true } : {}) });
+      s.sessions.push({ id: Date.now(), day, date: logDate, bodyweight: draft.bodyweight ? +draft.bodyweight : null, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, readiness: draft.readiness || 'normal', joints: draft.joints || 'ok', ...(draft.deload ? { deload: true } : {}) });
       if (flareVal && flareVal !== 'None') s.episodes.push({ id: Date.now(), date: logDate, what: flareVal, ctx: note || 'post-workout' });
       s.draft = null;
     });
     backToDay();
   };
 
+  renderCheckin();
+  renderDeload();
   render();
   });
 </script>
