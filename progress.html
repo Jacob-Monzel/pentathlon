@@ -20,10 +20,10 @@
 <body>
 <div class="page">
   <div id="bwCard"></div>
+  <div class="section-label">This week · training load</div>
+  <div id="loadCard"></div>
   <div class="section-label">Estimated 1RM</div>
   <div id="oneRM"></div>
-  <div class="section-label">Weekly effective sets · secondary at ½</div>
-  <div class="vol" id="vol"></div>
   <div class="links"><a href="index.html">Back</a></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -46,6 +46,28 @@
     bwCard.innerHTML = `<div class="rm bw-card"><div class="rm-h"><span class="rm-n">Bodyweight</span><span class="rm-v off">—</span></div><div class="rm-meta">enter it at the top of a workout to start tracking</div></div>`;
   }
 
+  const SPORTS = [['lift','\u{1F3CB}\uFE0F','Lifting'],['run','\u{1F3C3}','Running'],['swim','\u{1F3CA}','Swimming'],
+                  ['fence','\u{1F93A}','Fencing'],['ninja','\u{1F9D7}','Ninja / OCR'],['athletic','\u26A1','Athletic']];
+  const wk = weekLoad(weekDays(0).map(d => d.iso));
+  const prev = weekLoad(weekDays(-1).map(d => d.iso));
+  if (!wk.total) {
+    loadCard.innerHTML = `<div class="rm"><div class="rm-h"><span class="rm-n">Weekly load</span><span class="rm-v off">\u2014</span></div>
+      <div class="rm-meta">rate a session (RPE \u00d7 minutes) to start tracking load across all five sports</div></div>`;
+  } else {
+    const rows = SPORTS.filter(([k]) => wk.totals[k] > 0);
+    const mx = Math.max(...rows.map(([k]) => wk.totals[k]));
+    const delta = prev.total ? Math.round((wk.total - prev.total) / prev.total * 100) : null;
+    const mono = wk.monotony;
+    const monoNote = mono >= 2 ? 'every day looks the same \u2014 consider more hard/easy contrast'
+                   : mono > 0 ? 'good hard/easy contrast' : '';
+    loadCard.innerHTML =
+      `<div class="rm"><div class="rm-h"><span class="rm-n">Weekly load <em>AU</em></span><span class="rm-v">${wk.total}</span></div>
+         <div class="rm-meta">${delta === null ? 'first tracked week' : `${delta >= 0 ? '+' : ''}${delta}% vs last week`}${mono ? ` \u00b7 monotony ${mono.toFixed(1)}` : ''}</div>
+         <div class="vol">${rows.map(([k,e,n]) =>
+           `<div class="vrow"><span class="vg">${e} ${n}</span><span class="vbarwrap"><span class="vbar" style="width:${Math.round(wk.totals[k]/mx*100)}%"></span></span><span class="vn">${wk.totals[k]}</span></div>`).join('')}</div>
+         ${monoNote ? `<div class="rm-meta">${monoNote}</div>` : ''}</div>`;
+  }
+
   let html = '';
   PROGRESS_LIFTS.forEach(({k, n}) => {
     const series = e1rmSeries(k), vals = series.map(x => x.v);
@@ -55,11 +77,6 @@
     html += `<div class="rm"><div class="rm-h"><span class="rm-n">${n}${tag}</span><span class="rm-v">${cur}</span></div><div class="rm-spark">${spark(vals)}</div><div class="rm-meta">est. 1RM · best ${best} · ${vals.length} sessions</div></div>`;
   });
   oneRM.innerHTML = html;
-
-  const vols = weeklyVolume(), maxV = Math.max(...vols.map(v => v.sets));
-  vol.innerHTML = vols.map(v =>
-    `<div class="vrow"><span class="vg">${v.group}</span><span class="vbarwrap"><span class="vbar" style="width:${Math.round(v.sets/maxV*100)}%"></span></span><span class="vn">${v.sets%1===0?v.sets:v.sets.toFixed(1)}</span></div>`
-  ).join('');
   });
 </script>
 </body>

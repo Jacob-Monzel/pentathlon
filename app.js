@@ -371,6 +371,23 @@ function fatigueSignals() {
   return out;
 }
 
+// Renders the shared 1-10 sRPE picker into an element. Same scale everywhere,
+// anchors always visible, so ratings stay comparable across sports.
+function renderSrpePicker(el, current, onPick) {
+  el.innerHTML =
+    `<div class="srpe-scale">${SRPE_SCALE.map(([v]) =>
+      `<button data-v="${v}" class="${+current===v?'sel':''}${v>=9?' hi':''}">${v}</button>`).join('')}</div>
+     <div class="srpe-legend"><span>1 very easy</span><span>5 hard</span><span>10 all out</span></div>
+     <div class="srpe-pick" id="${el.id}-lbl">${current ? SRPE_LABEL(current) : ''}</div>`;
+  el.querySelectorAll('.srpe-scale button').forEach(b => b.onclick = () => {
+    el.querySelectorAll('.srpe-scale button').forEach(x => x.classList.remove('sel'));
+    b.classList.add('sel');
+    const lbl = document.getElementById(el.id + '-lbl');
+    if (lbl) lbl.textContent = SRPE_LABEL(b.dataset.v);
+    onPick(+b.dataset.v);
+  });
+}
+
 function bodyweightLog() {
   return Store.get().sessions.filter(s => s.bodyweight)
     .map(s => ({ date:s.date, bw:+s.bodyweight }))
@@ -378,52 +395,61 @@ function bodyweightLog() {
 }
 function latestBodyweight() { const l = bodyweightLog(); return l.length ? l[l.length-1].bw : ''; }
 
-// ---- weekly EFFECTIVE sets per muscle group (primary 1.0 + secondary 0.5) ----
-const EX_MUSCLES = {
-  bench:[['Chest',1],['Triceps',0.5],['Shoulders',0.5]],
-  chestpress:[['Chest',1],['Triceps',0.5],['Shoulders',0.5]],
-  incline_machine:[['Chest',1],['Triceps',0.5],['Shoulders',0.5]],
-  ohp_machine:[['Shoulders',1],['Triceps',0.5]],
-  row_machine:[['Back',1],['Biceps',0.5],['Rear delts',0.5]],
-  gobletbox:[['Quads',1],['Glutes / hips',0.5]],
-  incline:[['Chest',1],['Triceps',0.5],['Shoulders',0.5]],
-  pulldown:[['Back',1],['Biceps',0.5]],
-  pullup:[['Back',1],['Biceps',0.5]],
-  row:[['Back',1],['Biceps',0.5],['Rear delts',0.5]],
-  sealrow:[['Back',1],['Biceps',0.5],['Rear delts',0.5]],
-  row_db:[['Back',1],['Biceps',0.5],['Rear delts',0.5]],
-  cablerow:[['Back',1],['Biceps',0.5],['Rear delts',0.5]],
-  facepull:[['Rear delts',1]],
-  latraise:[['Side delts',1]],
-  ohp:[['Shoulders',1],['Triceps',0.5]],
-  dbcurl:[['Biceps',1]],
-  pushdown:[['Triceps',1]],
-  legpress:[['Quads',1],['Glutes / hips',0.5]],
-  boxsq:[['Quads',1],['Glutes / hips',0.5]],
-  splitsq:[['Quads',1],['Glutes / hips',0.5]],
-  wallsq:[['Knee rehab',1]],
-  kneeext:[['Knee rehab',1]],
-  gm:[['Hamstrings',1],['Glutes / hips',0.5]],
-  backext:[['Hamstrings',1],['Glutes / hips',0.5]],
-  rdl:[['Hamstrings',1],['Glutes / hips',0.5]],
-  legcurl:[['Hamstrings',1]],
-  calf_stand:[['Calves',1]],
-  calf_seated:[['Calves',1]],
-  pmtap:[['Glutes / hips',1]],
-  sumosq:[['Glutes / hips',1],['Quads',0.5]],
-  latlunge:[['Glutes / hips',1],['Quads',0.5]],
-  armbar:[['Core',1]],
-  windmill:[['Core',1]],
-  pallof:[['Core',1]],
-  pinchhold:[['Grip',1]],
-  deadhang:[['Grip',1],['Core',0.5]],
-};
-function weeklyVolume() {
-  const t = {};
-  WORKOUTS.map(w => PROGRAM[w]).forEach(d => d.ex.forEach(e => {
-    (EX_MUSCLES[e.k] || [['Other',1]]).forEach(([g, wt]) => { t[g] = (t[g]||0) + wt * e.sets; });
-  }));
-  return Object.entries(t).map(([group, sets]) => ({ group, sets })).sort((a,b) => b.sets - a.sets);
+// ---- session-RPE training load (Foster CR-10) ------------------------------
+// One currency across all five sports: load = sRPE x minutes. Validated as a
+// stand-alone internal-load measure; anchors are shown at rating time so a 7 in
+// the pool means the same as a 7 under the bar.
+const SRPE_SCALE = [
+  [1,'Very easy'], [2,'Easy'], [3,'Moderate'], [4,'Somewhat hard'], [5,'Hard'],
+  [6,'Harder'], [7,'Very hard'], [8,'Very hard +'], [9,'Near max'], [10,'All out'],
+];
+const SRPE_LABEL = v => (SRPE_SCALE.find(x => x[0] === +v) || [0,''])[1];
+
+// minutes for an activity — inferred from what's already logged where possible
+function actMinutes(a) {
+  if (!a) return 0;
+  if (a.minutes) return +a.minutes;
+  if (a.time) { const s = parseTime(a.time); if (s) return Math.round(s/60); }
+  if (a.duration) return +a.duration;
+  return 0;
+}
+function sessionMinutes(s) { return s && s.minutes ? +s.minutes : 0; }
+// training load in AU; returns 0 when we can't honestly compute it
+function loadOfActivity(a) { const m = actMinutes(a), r = +(a && a.srpe); return (m && r) ? Math.round(m * r) : 0; }
+function loadOfSession(s)  { const m = sessionMinutes(s), r = +(s && s.srpe); return (m && r) ? Math.round(m * r) : 0; }
+
+// per-day loads across every modality for a set of ISO dates
+function dailyLoads(isos) {
+  const out = {}; isos.forEach(d => out[d] = { lift:0, run:0, swim:0, fence:0, ninja:0, athletic:0, total:0 });
+  const set = new Set(isos);
+  Store.get().sessions.forEach(s => {
+    if (!set.has(s.date)) return;
+    const l = loadOfSession(s); if (!l) return;
+    const bucket = ATHLETIC_DAYS.includes(s.day) ? 'athletic' : 'lift';
+    out[s.date][bucket] += l; out[s.date].total += l;
+  });
+  (Store.get().activities || []).forEach(a => {
+    if (!set.has(a.date)) return;
+    const l = loadOfActivity(a); if (!l) return;
+    if (out[a.date][a.type] === undefined) out[a.date][a.type] = 0;
+    out[a.date][a.type] += l; out[a.date].total += l;
+  });
+  return out;
+}
+// weekly totals by sport + monotony/strain (day-to-day sameness; high = little
+// hard/easy contrast). Informative, not a verdict — thresholds are rules of thumb.
+function weekLoad(isos) {
+  const d = dailyLoads(isos), days = isos.map(i => d[i]);
+  const totals = { lift:0, run:0, swim:0, fence:0, ninja:0, athletic:0 };
+  days.forEach(x => Object.keys(totals).forEach(k => totals[k] += (x[k] || 0)));
+  const dayTotals = days.map(x => x.total);
+  const total = dayTotals.reduce((a,b) => a+b, 0);
+  const mean = total / (isos.length || 1);
+  const sd = Math.sqrt(dayTotals.reduce((a,b) => a + Math.pow(b-mean,2), 0) / (isos.length || 1));
+  // sd = 0 with real training means every day was identical — the most monotonous
+  // case there is, not the least. Cap it rather than dividing by zero.
+  const monotony = total === 0 ? 0 : (sd > 0 ? Math.min(mean/sd, 5) : 5);
+  return { totals, total, mean, sd, monotony, strain: Math.round(total * monotony), days: dayTotals };
 }
 
 // ---- per-exercise execution cues (mains + every alternate) ----

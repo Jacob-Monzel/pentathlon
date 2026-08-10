@@ -24,6 +24,11 @@
     <div class="dayttl" id="dayttl"></div>
   </div>
   <div id="form"></div>
+  <div class="ratebox">
+    <div class="fq">How hard was that session?</div>
+    <div class="srpe" id="srpeBox"></div>
+    <div class="durrow"><label>Duration</label><input id="durMin" inputmode="numeric" placeholder="—"><span>min</span></div>
+  </div>
   <button class="primary" id="save">Save</button>
   <button class="dangerbtn" id="del" hidden>Delete</button>
 </div>
@@ -45,6 +50,20 @@
   if (!spec) backTo();
   dayttl.innerHTML = `${spec.emoji} ${spec.label} <span class="ttl-date">${prettyDate(date)}</span>`;
 
+  // ---------- session RPE + duration (shared by both form types) ----------
+  let srpeVal = existing && existing.srpe ? +existing.srpe : null;
+  renderSrpePicker(srpeBox, srpeVal, v => { srpeVal = v; });
+  if (existing) durMin.value = actMinutes(existing) || '';
+  // best guess at duration from whatever the form already knows (time / minutes field)
+  function inferMinutes() {
+    const t = form.querySelector('#c-time');
+    if (t && t.value) return actMinutes({ time: t.value });
+    const d = form.querySelector('[data-k="duration"]');
+    return d && d.value ? +d.value : 0;
+  }
+  const syncDur = () => { if (!durMin.value) { const m = inferMinutes(); if (m) durMin.value = m; } };
+  const rateFields = () => ({ ...(srpeVal ? { srpe: srpeVal } : {}), ...(durMin.value ? { minutes: +durMin.value } : {}) });
+
   // ---------- FENCE / NINJA : simple generic form ----------
   function renderSimple() {
     form.innerHTML = spec.fields.map(f => {
@@ -56,9 +75,10 @@
       return `<label class="field"><span>${f.label}</span><input type="text" inputmode="${mode}" data-k="${f.k}" value="${val}" placeholder="${ph}"></label>`;
     }).join('');
     save.onclick = () => {
+      syncDur();
       const a = { id: editId || undefined, type, date };
       form.querySelectorAll('[data-k]').forEach(el => a[el.dataset.k] = el.value.trim());
-      saveActivity(a); backTo();
+      saveActivity({ ...a, ...rateFields() }); backTo();
     };
   }
 
@@ -171,10 +191,11 @@
   if (isCardio) {
     renderCardio();
     save.onclick = () => {
+      syncDur();
       state.note = (form.querySelector('#note').value||'').trim();
       const a = { id: editId || undefined, ...state };
       if (a.mode==='cont'){ a.segments=[]; } else { a.distance=''; a.time=''; }
-      saveActivity(a); backTo();
+      saveActivity({ ...a, ...rateFields() }); backTo();
     };
   } else {
     renderSimple();

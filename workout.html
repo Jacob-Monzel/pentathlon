@@ -45,6 +45,9 @@
     <div class="kneerow" id="kneeScale"></div>
     <div class="fq">Anything flare up?</div>
     <div class="opts" id="flareOpts"></div>
+    <div class="fq">How hard was the whole session?</div>
+    <div class="srpe" id="srpeBox"></div>
+    <div class="durrow"><label>Duration</label><input id="durMin" inputmode="numeric" placeholder="—"><span>min</span></div>
     <input type="text" id="fbNote" placeholder="note (optional)">
     <div class="sheet-actions">
       <button id="fbCancel" class="ghostbtn">Back</button>
@@ -355,7 +358,8 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderRest(); renderClock(); } });
   tickRest();
 
-  let kneeVal = null, flareVal = 'None';
+  let kneeVal = null, flareVal = 'None', srpeVal = null;
+  renderSrpePicker(srpeBox, null, v => { srpeVal = v; });
   kneeScale.innerHTML = [0,1,2,3,4,5,6,7,8,9,10].map(v => `<button data-v="${v}">${v}</button>`).join('');
   kneeScale.querySelectorAll('button').forEach(b => b.onclick = () => {
     kneeScale.querySelectorAll('button').forEach(x => x.classList.remove('sel','hi'));
@@ -369,7 +373,10 @@
   });
 
   exit.onclick = () => { if (!draftHasContent(draft)) Store.update(s => { s.draft = null; }); backToDay(); };
-  finish.onclick = () => sheet.classList.add('on');
+  finish.onclick = () => {
+    if (!durMin.value && draft.startedAt) durMin.value = Math.max(1, Math.round((Date.now() - draft.startedAt) / 60000));
+    sheet.classList.add('on');
+  };
   fbCancel.onclick = () => sheet.classList.remove('on');
   fbSave.onclick = () => {
     const exercises = {};
@@ -380,7 +387,7 @@
     });
     const note = fbNote.value.trim();
     Store.update(s => {
-      s.sessions.push({ id: Date.now(), day, date: logDate, bodyweight: draft.bodyweight ? +draft.bodyweight : null, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, readiness: draft.readiness || 'normal', joints: draft.joints || 'ok', ...(draft.deload ? { deload: true } : {}) });
+      s.sessions.push({ id: Date.now(), day, date: logDate, bodyweight: draft.bodyweight ? +draft.bodyweight : null, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, readiness: draft.readiness || 'normal', joints: draft.joints || 'ok', ...(srpeVal ? { srpe: srpeVal } : {}), ...(durMin.value ? { minutes: +durMin.value } : {}), ...(draft.deload ? { deload: true } : {}) });
       if (flareVal && flareVal !== 'None') s.episodes.push({ id: Date.now(), date: logDate, what: flareVal, ctx: note || 'post-workout' });
       s.draft = null;
     });
