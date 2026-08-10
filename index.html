@@ -38,7 +38,7 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=202608102357"></script>
 <script>
   boot(async () => {
   let offset = 0;
@@ -101,7 +101,15 @@
     };
     wIn.onkeydown = e => { if (e.key === 'Enter') wSave.click(); };
   }
-  renderWeighIn();
+  // The weigh-in is a nice-to-have; it must never be able to take down the
+  // calendar. If app.js is stale or cached, skip it rather than throwing.
+  try {
+    if (typeof weightForDate === 'function') renderWeighIn();
+    else console.warn('weigh-in needs a newer app.js');
+  } catch (e) {
+    console.warn('weigh-in unavailable:', e);
+    weighin.innerHTML = '';
+  }
 
   const chip = (cls, txt) => `<span class="chip ${cls}">${txt}</span>`;
   function chipsFor(iso) {

@@ -151,7 +151,7 @@ const Store = (() => {
   const KEY = 'pentathlon_v2', TS = 'pentathlon_v2_ts';
   let persistent = true, mem = null;
   try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); } catch (e) { persistent = false; }
-  const def = () => ({ sessions:[], activities:[], episodes:[], draft:null });
+  const def = () => ({ sessions:[], activities:[], episodes:[], weights:[], draft:null });
 
   const readLocal = () => { if (!persistent) return mem || (mem = def());
     try { return Object.assign(def(), JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { return def(); } };
@@ -252,7 +252,7 @@ function topHistory(k) {
   const out = [];
   Store.get().sessions.forEach(s => {
     const e = s.exercises && s.exercises[k];
-    if (e && e.sets && e.sets[0] && e.sets[0].w) out.push({ date:s.date, id:s.id, bw:s.bodyweight, reduced:!!s.reduced, ...e.sets[0] });
+    if (e && e.sets && e.sets[0] && e.sets[0].w) out.push({ date:s.date, id:s.id, bw:(s.bodyweight || bwOn(s.date)), reduced:!!s.reduced, ...e.sets[0] });
   });
   return out.sort((a,b) => a.date === b.date ? ((a.id||0)-(b.id||0)) : (a.date < b.date ? -1 : 1));
 }
@@ -484,10 +484,30 @@ function flareStats() {
   };
 }
 
+// ---- bodyweight: one morning weigh-in per day, same conditions ------------
+// Stored as its own daily series. Older weights recorded mid-workout still show
+// in the trend (legacy), but a same-day weigh-in always wins.
+function logWeight(date, bw) {
+  Store.update(s => {
+    s.weights = s.weights || [];
+    const i = s.weights.findIndex(w => w.date === date);
+    if (i > -1) s.weights[i].bw = +bw; else s.weights.push({ date, bw: +bw });
+  });
+}
+function weightForDate(date) {
+  return (Store.get().weights || []).find(w => w.date === date) || null;
+}
 function bodyweightLog() {
-  return Store.get().sessions.filter(s => s.bodyweight)
-    .map(s => ({ date:s.date, bw:+s.bodyweight }))
+  const byDate = {};
+  Store.get().sessions.forEach(s => { if (s.bodyweight) byDate[s.date] = +s.bodyweight; });   // legacy
+  (Store.get().weights || []).forEach(w => { if (w.bw) byDate[w.date] = +w.bw; });            // wins
+  return Object.entries(byDate).map(([date, bw]) => ({ date, bw }))
     .sort((a,b) => a.date < b.date ? -1 : 1);
+}
+// bodyweight on or most recently before a date — for pull-up e1RM math
+function bwOn(date) {
+  const log = bodyweightLog().filter(w => w.date <= date);
+  return log.length ? log[log.length-1].bw : null;
 }
 function latestBodyweight() { const l = bodyweightLog(); return l.length ? l[l.length-1].bw : ''; }
 

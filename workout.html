@@ -23,11 +23,6 @@
   <div class="wtitle" id="wtitle"></div>
   <div class="wclock" id="wclock">0:00</div>
 </div>
-<div class="bw-row" id="bwrow">
-  <label>Bodyweight</label>
-  <input id="bw" inputmode="decimal" placeholder="—">
-  <span class="bw-unit">lbs</span>
-</div>
 <div id="deloadBanner"></div>
 <div class="checkin" id="checkin">
   <div class="ci-row"><span class="ci-q">How do you feel?</span><div class="seg" id="segReady"></div></div>
@@ -58,7 +53,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=202608102357"></script>
 <script>
   boot(async () => {
   const params = new URLSearchParams(location.search);
@@ -116,10 +111,6 @@
   const save = () => Store.update(s => { s.draft = draft; });
   const anchorClock = () => { if (!draft.startedAt) { draft.startedAt = Date.now(); renderClock(); } };   // starts on first real activity
   const curSlot = k => slots.find(s => s.k === k);
-
-  // bodyweight
-  bw.value = draft.bodyweight || latestBodyweight() || '';
-  bw.oninput = () => { draft.bodyweight = bw.value; save(); };
 
   // ---------- check-in: readiness scales load, joints route swaps, time trims scope ----------
   if (!draft.readiness) draft.readiness = 'normal';
@@ -346,7 +337,7 @@
     const slot = curSlot(k); if (!slot) return;
     const w = +set.w, r = +set.r; if (!w || !r) return;
     const val = slot.t === 'pullup'
-      ? e1rm((+(draft.bodyweight || latestBodyweight() || 0)) + w, r)
+      ? e1rm((+(bwOn(logDate) || latestBodyweight() || 0)) + w, r)
       : e1rm(w, r);
     const best = bestE1rm(k);   // saved sessions only — the in-progress draft isn't counted yet
     if (best > 0 && val > best) row.classList.add('pr');
@@ -387,7 +378,7 @@
     });
     const note = fbNote.value.trim();
     Store.update(s => {
-      s.sessions.push({ id: Date.now(), day, date: logDate, bodyweight: draft.bodyweight ? +draft.bodyweight : null, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, readiness: draft.readiness || 'normal', joints: draft.joints || 'ok', ...(srpeVal ? { srpe: srpeVal } : {}), ...(durMin.value ? { minutes: +durMin.value } : {}), ...(draft.deload ? { deload: true } : {}) });
+      s.sessions.push({ id: Date.now(), day, date: logDate, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, readiness: draft.readiness || 'normal', joints: draft.joints || 'ok', ...(srpeVal ? { srpe: srpeVal } : {}), ...(durMin.value ? { minutes: +durMin.value } : {}), ...(draft.deload ? { deload: true } : {}) });
       if (flareVal && flareVal !== 'None') s.episodes.push({ id: Date.now(), date: logDate, what: flareVal, ctx: note || 'post-workout' });
       s.draft = null;
     });
