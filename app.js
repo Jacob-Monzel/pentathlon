@@ -218,14 +218,18 @@ function topHistory(k) {
   const out = [];
   Store.get().sessions.forEach(s => {
     const e = s.exercises && s.exercises[k];
-    if (e && e.sets && e.sets[0] && e.sets[0].w) out.push({ date:s.date, bw:s.bodyweight, ...e.sets[0] });
+    if (e && e.sets && e.sets[0] && e.sets[0].w) out.push({ date:s.date, id:s.id, bw:s.bodyweight, reduced:!!s.reduced, ...e.sets[0] });
   });
-  return out.sort((a,b) => a.date < b.date ? -1 : 1);
+  return out.sort((a,b) => a.date === b.date ? ((a.id||0)-(b.id||0)) : (a.date < b.date ? -1 : 1));
 }
-function isStalled(k) {
-  const h = topHistory(k);
-  if (h.length < 3) return false;
-  return (+h[h.length-1].w) <= (+h[h.length-3].w);
+// the session a suggestion should build on: most recent NON-reduced session logging k
+// (falls back to the most recent of any kind if every prior session was a reduced day).
+function anchorSession(k) {
+  const sess = Store.get().sessions
+    .filter(s => s.exercises && s.exercises[k] && s.exercises[k].sets && s.exercises[k].sets[0] && s.exercises[k].sets[0].w)
+    .sort((a,b) => a.date === b.date ? ((b.id||0)-(a.id||0)) : (a.date < b.date ? 1 : -1));
+  const s = sess.find(x => !x.reduced) || sess[0];
+  return s ? { date:s.date, bw:s.bodyweight, sets:s.exercises[k].sets } : null;
 }
 function e1rmSeries(k) {
   return topHistory(k).map(e => {
@@ -235,23 +239,42 @@ function e1rmSeries(k) {
 }
 // best est-1RM ever logged for a lift (from saved sessions only) — used for in-workout PR flags
 function bestE1rm(k) { const s = e1rmSeries(k); return s.length ? Math.max(...s.map(x => x.v)) : 0; }
+// the actual set behind your best est-1RM, and how many sessions back it was (0 = current best).
+function bestSet(k) {
+  const h = topHistory(k);
+  if (!h.length) return null;
+  let bi = -1, bv = 0;
+  h.forEach((e,i) => { const v = (k==='pullup' && +e.bw) ? e1rm((+e.bw)+(+e.w||0), e.r) : e1rm(e.w, e.r); if (v > bv) { bv = v; bi = i; } });
+  if (bi < 0) return null;
+  return { w:h[bi].w, r:h[bi].r, v:bv, ago:h.length-1-bi, added:k==='pullup' };
+}
 function suggest(k, ex) {
   if (ex && ex.t === 'ath') return null;
-  const h = topHistory(k);
-  const p = h[h.length-1];
-  if (!p) return null;
+  const a = anchorSession(k);
+  if (!a) return null;
+  const top = a.sets[0];
   const inc = ex.inc || 5;
   const nums = (ex.reps.match(/\d+/g) || []).map(Number);
   const topRange = nums.length ? Math.max(...nums) : 4;
-  if (ex.t === 'top' || ex.t === 'pullup') {
-    if (isStalled(k)) return { w: round5((+p.w) * 0.9), tag: 'deload' };
-    const target = ex.t === 'pullup' ? topRange : (nums[0] || 4);
-    const metReps = (+p.r) >= target;
-    const okRpe = ex.rpe ? (p.rpe ? (+p.rpe) <= ex.rpe : true) : true;
-    return (metReps && okRpe) ? { w: round5((+p.w) + inc), tag: '+' + inc } : { w: +p.w || '', tag: 'hold' };
+
+  // timed holds (reps measured in seconds): chase more time, then add load past the range
+  if (/\d\s*s/i.test(ex.reps || '')) {
+    const secs = parseInt(('' + (top.r || '')).replace(/[^\d]/g, ''), 10) || 0;
+    if (+top.w && topRange && secs >= topRange) return { w: round5((+top.w) + 5), tag: '+5' };
+    return { w: +top.w || '', tag: 'time' };
   }
-  if (topRange && (+p.r) >= topRange) return { w: round5((+p.w || 0) + 5), tag: '+5' };
-  return { w: +p.w || '', tag: 'same' };
+
+  if (ex.t === 'top' || ex.t === 'pullup') {
+    const target = ex.t === 'pullup' ? topRange : (nums[0] || 4);
+    const metReps = (+top.r) >= target;
+    const okRpe = ex.rpe ? (top.rpe ? (+top.rpe) <= ex.rpe : true) : true;
+    return (metReps && okRpe) ? { w: round5((+top.w) + inc), tag: '+' + inc } : { w: +top.w || '', tag: 'hold' };
+  }
+
+  // work lifts — double progression: add weight only when EVERY working set hit the top of the range
+  const working = a.sets.filter(s => s.w !== '' || s.r !== '');
+  const allTop = working.length > 0 && working.every(s => (+s.r) >= topRange);
+  return allTop ? { w: round5((+top.w || 0) + 5), tag: '+5' } : { w: +top.w || '', tag: 'same' };
 }
 function bodyweightLog() {
   return Store.get().sessions.filter(s => s.bodyweight)

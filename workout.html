@@ -28,6 +28,14 @@
   <input id="bw" inputmode="decimal" placeholder="—">
   <span class="bw-unit">lbs</span>
 </div>
+<div class="ready-row" id="readyrow">
+  <span class="ready-label">Today</span>
+  <div class="seg" id="readySeg">
+    <button data-r="0">Normal</button>
+    <button data-r="1">Reduced</button>
+  </div>
+  <span class="ready-hint" id="readyHint"></span>
+</div>
 <div class="wlist" id="wlist"></div>
 <button class="finishbtn" id="finish">Finish &amp; feedback</button>
 <div class="restbar" id="rest"><span class="rt">1:30</span> rest · tap to dismiss</div>
@@ -111,27 +119,62 @@
   bw.value = draft.bodyweight || latestBodyweight() || '';
   bw.oninput = () => { draft.bodyweight = bw.value; save(); };
 
+  // Reduced day: seeded suggestions drop ~10% (untouched fields only); the session is tagged
+  // so it never anchors future suggestions. seedW is the single source of the shown/seeded number.
+  const seedW = w => (draft.reduced && w) ? round5(+w * 0.9) : w;
+
   function seedSlot(slot) {
     const st = exState(slot.k);
     if (st.sets.length) return;
     const sg = suggest(slot.k, slot);
     st.sugg = sg || null;
+    const base = sg ? sg.w : '';
+    const w0 = seedW(base);
     const n = (prevSets(day, slot.k) || []).length || slot.sets;
     for (let i = 0; i < n; i++) {
       let w = '';
-      if (slot.t === 'top' || slot.t === 'pullup') w = i === 0 ? (sg ? sg.w : '') : '';
-      else w = sg ? sg.w : '';
+      if (slot.t === 'top' || slot.t === 'pullup') w = i === 0 ? (w0 || '') : '';
+      else w = w0 || '';
       st.sets.push({ w: w === 0 ? '' : w, r: '', rpe: '', done: false, touched: false });
     }
   }
   slots.forEach(seedSlot); save();
+
+  // re-seed untouched weights when the readiness toggle flips (never overwrites typed values)
+  function applyReadiness() {
+    slots.forEach(slot => {
+      const st = exState(slot.k), sg = st.sugg;
+      if (!sg || !sg.w) return;
+      const target = seedW(sg.w) || '';
+      st.sets.forEach((set, i) => {
+        if (set.touched) return;
+        const seedable = (slot.t === 'top' || slot.t === 'pullup') ? i === 0 : true;
+        if (seedable) set.w = target === 0 ? '' : target;
+      });
+    });
+  }
+  function renderReady() {
+    readySeg.querySelectorAll('button').forEach(b => b.classList.toggle('on', (b.dataset.r === '1') === !!draft.reduced));
+    readyHint.textContent = draft.reduced ? 'targets eased · won\u2019t affect tracking' : '';
+  }
+  readySeg.querySelectorAll('button').forEach(b => b.onclick = () => {
+    const now = b.dataset.r === '1';
+    if (now === !!draft.reduced) return;
+    draft.reduced = now; applyReadiness(); save(); renderReady(); render();
+  });
+  renderReady();
 
   function render() {
     wlist.innerHTML = '';
     slots.forEach((slot, idx) => {
       const st = exState(slot.k);
       const sg = st.sugg;
-      const sgTxt = (sg && sg.w) ? `suggested ${sg.w}${sg.tag && sg.tag !== 'same' && sg.tag !== 'hold' ? ' · ' + sg.tag : ''}` : '';
+      const shownW = (sg && sg.w) ? (seedW(sg.w) || sg.w) : '';
+      let sgTxt = '';
+      if (sg && sg.tag === 'time') sgTxt = shownW ? `suggested ${shownW} · longer hold` : 'aim for a longer hold';
+      else if (shownW) sgTxt = `suggested ${shownW}` + (draft.reduced ? ' · reduced' : (sg.tag && sg.tag !== 'same' && sg.tag !== 'hold' ? ' · ' + sg.tag : ''));
+      const bs = (slot.t === 'top' || slot.t === 'pullup' || slot.rpe) ? bestSet(slot.k) : null;
+      const bestTxt = bs ? `best ${bs.added ? '+' : ''}${bs.w}\u00d7${bs.r} · ${bs.ago === 0 ? 'current best' : bs.ago + ' session' + (bs.ago > 1 ? 's' : '') + ' ago'}` : '';
       const prev = prevSets(day, slot.k) || [];   // last session's sets → per-row ghost placeholders
       const repHint = slot.reps.replace(/ \/ (side|hand)/,'');
       let rows = `<div class="seth"><span>set</span><span>weight</span><span>reps</span>${hasRpe(slot)?'<span>rpe</span>':''}<span></span></div>`;
@@ -158,6 +201,7 @@
          <div class="exmeta">${meta(slot)}</div>
          ${rxNote(slot)}
          <div class="prev">${prevLine(slot)}${sgTxt?` · <b>${sgTxt}</b>`:''}</div>
+         ${bestTxt?`<div class="best">${bestTxt}</div>`:''}
          <div class="sets">${rows}</div>
          <div class="exfoot"><button class="addset" data-k="${slot.k}">+ set</button><button class="rmset" data-k="${slot.k}">− set</button>${(slot.t==='top'||slot.t==='pullup')?`<span class="boff" id="boff-${slot.k}"></span>`:''}</div>`;
       wlist.appendChild(card);
@@ -290,7 +334,7 @@
     });
     const note = fbNote.value.trim();
     Store.update(s => {
-      s.sessions.push({ id: Date.now(), day, date: logDate, bodyweight: draft.bodyweight ? +draft.bodyweight : null, exercises, feedback: { knee: kneeVal, flare: flareVal, note } });
+      s.sessions.push({ id: Date.now(), day, date: logDate, bodyweight: draft.bodyweight ? +draft.bodyweight : null, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, ...(draft.reduced ? { reduced: true } : {}) });
       if (flareVal && flareVal !== 'None') s.episodes.push({ id: Date.now(), date: logDate, what: flareVal, ctx: note || 'post-workout' });
       s.draft = null;
     });
