@@ -29,8 +29,8 @@
   <span class="bw-unit">lbs</span>
 </div>
 <div class="wlist" id="wlist"></div>
+<button class="finishbtn" id="finish">Finish &amp; feedback</button>
 <div class="restbar" id="rest"><span class="rt">1:30</span> rest · tap to dismiss</div>
-<button class="finishbar" id="finish">Finish &amp; feedback</button>
 
 <div class="sheet" id="sheet">
   <div class="sheet-in">
@@ -164,12 +164,16 @@
       const st = exState(slot.k);
       const sg = st.sugg;
       const sgTxt = (sg && sg.w) ? `suggested ${sg.w}${sg.tag && sg.tag !== 'same' && sg.tag !== 'hold' ? ' · ' + sg.tag : ''}` : '';
+      const prev = prevSets(day, slot.k) || [];   // last session's sets → per-row ghost placeholders
+      const repHint = slot.reps.replace(/ \/ (side|hand)/,'');
       let rows = `<div class="seth"><span>set</span><span>weight</span><span>reps</span>${hasRpe(slot)?'<span>rpe</span>':''}<span></span></div>`;
       st.sets.forEach((set, i) => {
+        const pw = (prev[i] && prev[i].w !== undefined && prev[i].w !== '') ? prev[i].w : '';
+        const pr = (prev[i] && prev[i].r) ? prev[i].r : repHint;
         rows += `<div class="setrow" data-k="${slot.k}" data-i="${i}">
           <span class="setn">${i+1}</span>
-          <input class="sw" inputmode="numeric" value="${set.w}">
-          <input class="sr" inputmode="numeric" value="${set.r}" placeholder="${slot.reps.replace(/ \/ (side|hand)/,'')}">
+          <input class="sw" inputmode="numeric" value="${set.w}" placeholder="${pw}">
+          <input class="sr" inputmode="numeric" value="${set.r}" placeholder="${pr}">
           ${hasRpe(slot)?`<input class="srpe" inputmode="numeric" value="${set.rpe}" placeholder="${i===0&&slot.rpe?slot.rpe:''}">`:''}
           <button class="chk ${set.done?'on':''}">✓</button>
         </div>`;
@@ -205,7 +209,11 @@
       if (srpe) srpe.oninput = () => { set.rpe = srpe.value; set.touched = true; save(); };
       chk.onclick = () => {
         set.done = !set.done;
-        if (set.done) { set.touched = true; if (sw.value) set.w = sw.value; if (sr.value) set.r = sr.value; startRest(); }
+        if (set.done) {
+          set.touched = true; if (sw.value) set.w = sw.value; if (sr.value) set.r = sr.value;
+          startRest(restSecFor(curSlot(k)));
+          flagPR(k, set, row);
+        } else { row.classList.remove('pr'); }
         chk.classList.toggle('on', set.done); save();
       };
     });
@@ -264,6 +272,24 @@
   function tickRest() { renderRest(); if (draft.restEnd && !restInt) restInt = setInterval(renderRest, 500); }
   function startRest(sec = 90) { draft.restEnd = Date.now() + sec * 1000; save(); tickRest(); }
   rest.onclick = () => { draft.restEnd = null; save(); renderRest(); };
+
+  // rest length by exercise type: heavy top/pullup sets need long rest; timed holds short.
+  function restSecFor(slot) {
+    if (!slot) return 90;
+    if (slot.t === 'top' || slot.t === 'pullup') return 180;
+    if (/\d\s*s/i.test(slot.reps || '')) return 60;   // seconds-based holds
+    return 90;
+  }
+  // flag a completed set as a PR when its est-1RM beats everything logged before today.
+  function flagPR(k, set, row) {
+    const slot = curSlot(k); if (!slot) return;
+    const w = +set.w, r = +set.r; if (!w || !r) return;
+    const val = slot.t === 'pullup'
+      ? e1rm((+(draft.bodyweight || latestBodyweight() || 0)) + w, r)
+      : e1rm(w, r);
+    const best = bestE1rm(k);   // saved sessions only — the in-progress draft isn't counted yet
+    if (best > 0 && val > best) row.classList.add('pr');
+  }
 
   // ---------- workout clock — anchored to draft.startedAt, survives reloads ----------
   const renderClock = () => { wclock.textContent = fmtT(Math.floor((Date.now() - draft.startedAt) / 1000)); };

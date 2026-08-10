@@ -233,6 +233,8 @@ function e1rmSeries(k) {
     return { date:e.date, v:e1rm(e.w, e.r), basis: k === 'pullup' ? 'added' : 'std' };
   });
 }
+// best est-1RM ever logged for a lift (from saved sessions only) — used for in-workout PR flags
+function bestE1rm(k) { const s = e1rmSeries(k); return s.length ? Math.max(...s.map(x => x.v)) : 0; }
 function suggest(k, ex) {
   if (ex && ex.t === 'ath') return null;
   const h = topHistory(k);
