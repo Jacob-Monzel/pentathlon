@@ -365,7 +365,7 @@
     kneeScale.querySelectorAll('button').forEach(x => x.classList.remove('sel','hi'));
     b.classList.add('sel'); if (+b.dataset.v >= 6) b.classList.add('hi'); kneeVal = +b.dataset.v;
   });
-  const flares = ['None','Groin L','Groin R','Rotation','Hip L','Hip R','Other'];
+  const flares = ['None', ...FLARES];
   flareOpts.innerHTML = flares.map(f => `<button data-f="${f}" class="${f==='None'?'sel':''}">${f}</button>`).join('');
   flareOpts.querySelectorAll('button').forEach(b => b.onclick = () => {
     flareOpts.querySelectorAll('button').forEach(x => x.classList.remove('sel'));

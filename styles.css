@@ -196,12 +196,17 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 
 /* episodes */
 .epform{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+/* flex children default to min-width:auto — a date input's intrinsic width then
+   blows past the card on iOS. Force them to shrink. */
+.epform > *{min-width:0;width:100%;max-width:100%}
+.epform input[type=date]{-webkit-appearance:none;appearance:none}
 .ep{display:flex;gap:14px;padding:14px 2px;border-bottom:1px solid var(--line)}
-.gap{font-family:var(--mono);font-weight:700;color:var(--accent);font-size:15px;min-width:46px;text-align:center;align-self:center;line-height:1.15}
+.gap{font-family:var(--mono);font-weight:700;color:var(--accent);font-size:15px;min-width:46px;flex:0 0 46px;text-align:center;align-self:center;line-height:1.15}
 .gap span{display:block;font-size:9px;color:var(--faint);font-weight:400}
-.epb b{font-size:15px}
+.epb{flex:1;min-width:0}
+.epb b{font-size:15px;overflow-wrap:anywhere}
 .epb .d{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:3px}
-.epb .c{font-size:12.5px;color:var(--muted);margin-top:3px}
+.epb .c{font-size:12.5px;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}
 .empty{text-align:center;color:var(--faint);font-size:13px;line-height:1.6;padding:40px 18px}
 
 .rmset{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px dashed var(--line);

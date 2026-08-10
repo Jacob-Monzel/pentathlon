@@ -19,12 +19,15 @@
 </head>
 <body>
 <div class="page">
+  <div class="dayhead">
+    <a href="index.html" class="back">&lsaquo;</a>
+    <div class="dayttl">Flares</div>
+  </div>
+  <div id="epHead"></div>
   <div class="epform">
     <input type="date" id="epDate">
     <select id="epWhat">
       <option value="">what flared…</option>
-      <option>Groin — left</option><option>Groin — right</option>
-      <option>Rotation / trunk</option><option>Hip — left</option><option>Hip — right</option><option>Other</option>
     </select>
     <input type="text" id="epCtx" placeholder="trigger / context (optional)">
     <button id="epAdd" class="primary">Add</button>
@@ -38,30 +41,32 @@
 <script>
   boot(async () => {
   epDate.value = todayISO();
+  epWhat.innerHTML = `<option value="">what flared\u2026</option>` +
+    FLARES.map(f => `<option>${f}</option>`).join('');
 
   function render() {
-    const eps = [...Store.get().episodes].sort((a,b) => a.date < b.date ? -1 : 1);
-    if (!eps.length) {
-      epList.innerHTML = '<div class="empty">Nothing logged — good.<br>The gap between episodes getting longer is the win.</div>';
+    const fs = flareStats();
+    epHead.innerHTML = fs.daysSince === null
+      ? `<div class="rm"><div class="rm-h"><span class="rm-n">Flare-free</span><span class="rm-v">\u2014</span></div>
+           <div class="rm-meta">nothing logged \u2014 good. The gap getting longer is the win.</div></div>`
+      : `<div class="rm"><div class="rm-h"><span class="rm-n">Days since last flare</span><span class="rm-v">${fs.daysSince}</span></div>
+           <div class="rm-meta">${fs.last.what} \u00b7 ${prettyDate(fs.last.date)}${fs.last30 ? ` \u00b7 ${fs.last30} in the last 30 days` : ''}</div></div>`;
+
+    if (!fs.all.length) {
+      epList.innerHTML = '<div class="empty">Nothing logged \u2014 good.<br>The gap between episodes getting longer is the win.</div>';
       return;
     }
-    epList.innerHTML = '';
-    eps.reverse().forEach((e, idx) => {
-      const nxt = eps[idx + 1];
-      let gap = 'first', num = false;
-      if (nxt) { gap = Math.round((new Date(e.date) - new Date(nxt.date)) / 86400000); num = true; }
-      const row = document.createElement('div');
-      row.className = 'ep';
-      row.innerHTML = `<div class="gap">${gap}<span>${num?'days':''}</span></div>` +
-        `<div class="epb"><b>${e.what}</b><div class="d">${e.date}</div>${e.ctx?`<div class="c">${e.ctx}</div>`:''}</div>`;
-      epList.appendChild(row);
-    });
+    epList.innerHTML = fs.all.map(e =>
+      `<div class="ep">
+         <div class="gap">${e.gap === null ? 'first' : e.gap}<span>${e.gap === null ? '' : 'days'}</span></div>
+         <div class="epb"><b>${e.what}</b><div class="d">${prettyDate(e.date)}</div>${e.ctx?`<div class="c">${e.ctx}</div>`:''}</div>
+       </div>`).join('');
   }
 
   epAdd.onclick = () => {
     const w = epWhat.value;
     if (!w) { epWhat.focus(); return; }
-    Store.update(s => s.episodes.push({ id: Date.now(), date: epDate.value || todayISO(), what: w, ctx: epCtx.value.trim() }));
+    Store.update(s => { s.episodes = s.episodes || []; s.episodes.push({ id: Date.now(), date: epDate.value || todayISO(), what: w, ctx: epCtx.value.trim() }); });
     epWhat.value = ''; epCtx.value = '';
     render();
   };

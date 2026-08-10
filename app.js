@@ -450,6 +450,40 @@ function trainingHistory(limit = 14) {
   return items.sort((x, y) => x.date === y.date ? ((y.id > x.id) ? 1 : -1) : (x.date < y.date ? 1 : -1)).slice(0, limit);
 }
 
+// ---- joint / flare tracking ------------------------------------------------
+// One vocabulary for both entry points (post-workout sheet + flares page), so
+// the same injury never splits into two categories in the history.
+const FLARES = ['Groin L','Groin R','Rotation','Hip L','Hip R','Knee','Other'];
+const FLARE_LEGACY = {
+  'Groin — left':'Groin L', 'Groin — right':'Groin R', 'Rotation / trunk':'Rotation',
+  'Hip — left':'Hip L', 'Hip — right':'Hip R',
+};
+const normFlare = w => FLARE_LEGACY[w] || w;
+
+// post-workout knee scores over time
+function kneeLog() {
+  return Store.get().sessions
+    .filter(s => s.feedback && typeof s.feedback.knee === 'number')
+    .map(s => ({ date: s.date, v: s.feedback.knee }))
+    .sort((a,b) => a.date < b.date ? -1 : 1);
+}
+// flare history with the gap between each one — a widening gap is the win
+function flareStats() {
+  const eps = [...(Store.get().episodes || [])].sort((a,b) => a.date < b.date ? 1 : -1);
+  const today = todayISO();
+  const withGaps = eps.map((e, i) => {
+    const nxt = eps[i+1];
+    return { ...e, what: normFlare(e.what), gap: nxt ? daysBetween(nxt.date, e.date) : null };
+  });
+  return {
+    all: withGaps,
+    recent: withGaps.slice(0, 6),
+    last: eps[0] || null,
+    daysSince: eps[0] ? daysBetween(eps[0].date, today) : null,
+    last30: eps.filter(e => daysBetween(e.date, today) <= 30).length,
+  };
+}
+
 function bodyweightLog() {
   return Store.get().sessions.filter(s => s.bodyweight)
     .map(s => ({ date:s.date, bw:+s.bodyweight }))
