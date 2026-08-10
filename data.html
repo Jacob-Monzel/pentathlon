@@ -19,11 +19,14 @@
 </head>
 <body>
 <div class="page">
+  <div class="dayhead">
+    <a href="index.html" class="back">&lsaquo;</a>
+    <div class="dayttl">Backup</div>
+  </div>
   <button id="exp" class="primary">Export data (.json)</button>
   <button id="imp" class="ghostbtn">Import from file</button>
   <input type="file" id="impFile" accept="application/json" hidden>
   <button id="wipe" class="dangerbtn">Erase everything</button>
-  <div class="links"><a href="index.html">Back</a></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
