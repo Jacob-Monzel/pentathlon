@@ -26,6 +26,7 @@
     <button id="next" aria-label="next week">&rsaquo;</button>
   </div>
   <div id="resume"></div>
+  <div id="weighin"></div>
   <div class="goals" id="goals"></div>
   <div class="wk" id="wk"></div>
   <div class="links">
@@ -51,6 +52,56 @@
          <div class="resume-body"><b>Resume ${di.label}</b><span>${di.sets} set${di.sets===1?'':'s'} saved · ${prettyDate(di.date)}</span></div>
          <span class="resume-caret">›</span></a>`;
   }
+
+  // morning weigh-in — same conditions daily; disappears once today's is in.
+  // "Skip" is session-scoped on purpose: it clears when the app is closed (so it
+  // asks again next open) and never syncs, so skipping here doesn't skip elsewhere.
+  let memSkip = false;
+  const SKIP_KEY = 'weighin_skip_' + today;
+  const isSkipped = () => { try { return sessionStorage.getItem(SKIP_KEY) === '1'; } catch (e) { return memSkip; } };
+  const setSkipped = v => { memSkip = v; try { v ? sessionStorage.setItem(SKIP_KEY,'1') : sessionStorage.removeItem(SKIP_KEY); } catch (e) {} };
+
+  function renderWeighIn() {
+    const todayW = weightForDate(today);
+    if (todayW) {
+      const log = bodyweightLog(), prev = log.length > 1 ? log[log.length-2].bw : null;
+      const dlt = prev !== null ? +(todayW.bw - prev).toFixed(1) : null;
+      weighin.innerHTML =
+        `<div class="weighed"><span>\u2713 Weighed in \u00b7 <b>${todayW.bw}</b> lbs${dlt !== null ? ` \u00b7 ${dlt >= 0 ? '+' : ''}${dlt} vs last` : ''}</span>
+           <button id="wEdit">edit</button></div>`;
+      wEdit.onclick = () => renderForm(todayW.bw);
+      return;
+    }
+    if (isSkipped()) {
+      weighin.innerHTML = `<button class="weighmini" id="wUndo">+ log this morning\u2019s weigh-in</button>`;
+      wUndo.onclick = () => { setSkipped(false); renderForm(''); };
+      return;
+    }
+    renderForm('');
+  }
+  function renderForm(val) {
+    weighin.innerHTML =
+      `<div class="weighcard">
+         <div class="weighq"><b>Morning weigh-in</b><span>same time, same conditions</span>
+           <button class="weighx" id="wSkip" aria-label="skip for now">\u2715</button></div>
+         <div class="weighin-row">
+           <input id="wIn" inputmode="decimal" placeholder="${latestBodyweight() || '—'}" value="${val}">
+           <span class="bw-unit">lbs</span>
+           <button class="weighsave" id="wSave">Save</button>
+         </div>
+       </div>`;
+    wIn.focus();
+    wSkip.onclick = () => { setSkipped(true); renderWeighIn(); };
+    wSave.onclick = () => {
+      const v = parseFloat(wIn.value);
+      if (!isFinite(v) || v <= 0) { wIn.focus(); return; }
+      logWeight(today, v);
+      setSkipped(false);
+      renderWeighIn(); render();
+    };
+    wIn.onkeydown = e => { if (e.key === 'Enter') wSave.click(); };
+  }
+  renderWeighIn();
 
   const chip = (cls, txt) => `<span class="chip ${cls}">${txt}</span>`;
   function chipsFor(iso) {
