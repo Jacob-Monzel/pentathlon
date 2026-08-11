@@ -37,17 +37,11 @@
       <button data-w="w1">1</button><button data-w="w2">2</button><button data-w="w3">3</button>
     </div>
   </div>
-  <div class="addlift athrow">
-    <button class="primary" id="startAth"></button>
-    <div class="wpick" id="athpick">
-      <button data-w="a1">1</button><button data-w="a2">2</button>
-    </div>
-  </div>
   <div class="addsports" id="addsports"></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=202608110041"></script>
+<script src="app.js?v=202608110052"></script>
 <script>
   boot(async () => {
   const date = new URLSearchParams(location.search).get('date') || todayISO();
@@ -62,7 +56,7 @@
       const n = Object.keys(s.exercises || {}).length;
       const semoji = (typeof ATHLETIC_DAYS !== 'undefined' && ATHLETIC_DAYS.includes(s.day)) ? '\u26A1' : '\u{1F3CB}\uFE0F';
       html += `<div class="actrow"><div class="act-emoji">${semoji}</div>
-        <div class="act-body"><b>${PROGRAM[s.day] ? PROGRAM[s.day].label : 'Lift'}</b><span>${n} exercise${n===1?'':'s'} logged</span></div>
+        <div class="act-body"><b>${dayLabel(s.day)}</b><span>${n} exercise${n===1?'':'s'} logged</span></div>
         <button class="act-del" data-sid="${s.id}">\u2715</button></div>`;
     });
     acts.forEach(a => {
@@ -105,15 +99,6 @@
   startLift.onclick = () => location.href = `workout.html?day=${sugg}&date=${date}`;
   document.querySelectorAll('#liftpick button').forEach(b => {
     if (b.dataset.w === sugg) b.classList.add('on');
-    b.onclick = () => location.href = `workout.html?day=${b.dataset.w}&date=${date}`;
-  });
-
-  // athletic — suggested opposite of last athletic session, overridable
-  const asugg = nextAthletic();
-  startAth.innerHTML = `Start ${PROGRAM[asugg].label} <span class="sugg-tag">suggested</span>`;
-  startAth.onclick = () => location.href = `workout.html?day=${asugg}&date=${date}`;
-  document.querySelectorAll('#athpick button').forEach(b => {
-    if (b.dataset.w === asugg) b.classList.add('on');
     b.onclick = () => location.href = `workout.html?day=${b.dataset.w}&date=${date}`;
   });
 

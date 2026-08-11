@@ -62,7 +62,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=202608110041"></script>
+<script src="app.js?v=202608110052"></script>
 <script>
   boot(async () => {
   const params = new URLSearchParams(location.search);
@@ -105,7 +105,7 @@
   {
     const d = Store.get().draft;
     if (draftHasContent(d) && (d.day !== day || d.date !== logDate)) {
-      const lbl = PROGRAM[d.day] ? PROGRAM[d.day].label : 'workout';
+      const lbl = dayLabel(d.day);
       if (confirm(`You have an unfinished ${lbl} (${prettyDate(d.date)}). Resume it?\n\nCancel discards it and starts this one instead.`)) {
         location.replace(`workout.html?day=${d.day}&date=${d.date}`);
         return;

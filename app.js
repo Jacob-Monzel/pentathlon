@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.10-6';
+const APP_VERSION = '2026.08.10-7';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -85,45 +85,6 @@ const PROGRAM = {
       alts:[{k:'calf_legpress',n:'Leg-press calf raise'},{k:'calf_stand',n:'Standing calf raise'}]},
     {k:'deadhang',n:'Weighted dead hang', t:'work', sets:3, reps:'30–90s', cue:'weight = added lbs · past 90s? add 5',
       alts:[{k:'towelhang',n:'Towel hang'},{k:'farmerhold',n:'Heavy farmer hold'}]},
-  ]},
-  // ---- Athletic sessions: ordered warm-up → build → MAX. Do what you're
-  // ready for, skip the rest (untouched exercises don't log). MAX tier waits
-  // for PT clearance. reps = meters / seconds / reps as labeled. ----
-  a1: { label:'Athletic 1 · Sprint', ex:[
-    {k:'jogwarm',  n:'Easy jog + leg swings', t:'ath', sets:1, reps:'5–8 min', cue:'warm-up',
-      alts:[{k:'bikewarm',n:'Bike / row warm-up'}]},
-    {k:'askip',    n:'A-skip', t:'ath', sets:2, reps:'20m', cue:'warm-up · crisp posture',
-      alts:[{k:'amarch',n:'A-march'}]},
-    {k:'bskip',    n:'B-skip', t:'ath', sets:2, reps:'20m', cue:'warm-up',
-      alts:[{k:'fastleg',n:'Fast-leg drill'}]},
-    {k:'highknee', n:'High-knee run', t:'ath', sets:2, reps:'20m', cue:'build',
-      alts:[{k:'buttkick',n:'Butt-kick run'}]},
-    {k:'slbound',  n:'Straight-leg bound', t:'ath', sets:2, reps:'20m', cue:'build · low + short',
-      alts:[{k:'carioca',n:'Carioca'}]},
-    {k:'buildup',  n:'Build-up 85–90%', t:'ath', sets:4, reps:'40m', cue:'build · walk-back rest',
-      alts:[{k:'strides',n:'Strides (relaxed)'}]},
-    {k:'maxsprint',n:'Max sprint', t:'ath', sets:3, reps:'30–40m', cue:'MAX · full rest · only when ready',
-      alts:[{k:'hillsprint',n:'Hill sprint'},{k:'flysprint',n:'Flying 20m'}]},
-  ]},
-  a2: { label:'Athletic 2 · Jump', ex:[
-    {k:'pogo',     n:'Pogo hops', t:'ath', sets:2, reps:'10–15', cue:'stage 1 · rhythm · quiet feet',
-      alts:[{k:'jumprope',n:'Jump rope'}]},
-    {k:'linehop',  n:'Line hops (front/side)', t:'ath', sets:2, reps:'10 / dir', cue:'stage 1 · rhythm',
-      alts:[{k:'lateralhop',n:'Lateral low hop'}]},
-    {k:'mbscoop',  n:'Med-ball rotational throw', t:'ath', sets:3, reps:'5 / side', cue:'full intent · safe now',
-      alts:[{k:'mbchest',n:'Med-ball chest pass'}]},
-    {k:'mbslam',   n:'Med-ball slam', t:'ath', sets:3, reps:'5', cue:'safe now',
-      alts:[{k:'mboverhead',n:'Med-ball overhead throw'}]},
-    {k:'snapdown', n:'Snap-down', t:'ath', sets:2, reps:'5', cue:'stage 2 · fast ground',
-      alts:[{k:'dropcatch',n:'Drop-and-catch'}]},
-    {k:'hurdlehop',n:'Low hurdle hop', t:'ath', sets:3, reps:'5', cue:'stage 2 · fast ground',
-      alts:[{k:'lowbox',n:'Low box hop'}]},
-    {k:'boxjump',  n:'Box jump', t:'ath', sets:3, reps:'3–5', cue:'stage 3 · MAX · cleared only',
-      alts:[{k:'depthdrop',n:'Depth drop'},{k:'squatjump',n:'Squat jump'}]},
-    {k:'broadjump',n:'Broad jump', t:'ath', sets:3, reps:'3', cue:'stage 3 · MAX',
-      alts:[{k:'vertjump',n:'Vertical jump'}]},
-    {k:'lungeplyo',n:'Lunge-and-recover plyo', t:'ath', sets:3, reps:'3 / side', cue:'stage 3 · the fencing one',
-      alts:[{k:'splitjump',n:'Split-squat jump'}]},
   ]},
 };
 // lifts shown on the Progress page (balanced upper + lower)
@@ -497,7 +458,7 @@ function trainingHistory(limit = 14) {
   const items = [];
   Store.get().sessions.forEach(s => items.push({
     kind: 'lift', date: s.date, id: s.id,
-    label: PROGRAM[s.day] ? PROGRAM[s.day].label : 'Workout',
+    label: dayLabel(s.day),
     emoji: ATHLETIC_DAYS.includes(s.day) ? '\u26A1' : '\u{1F3CB}\uFE0F',
     load: loadOfSession(s), srpe: s.srpe, minutes: sessionMinutes(s),
     readiness: s.readiness, deload: !!s.deload,
@@ -797,7 +758,12 @@ const ACT = {
 const ACT_ORDER = ['run','swim','fence','ninja'];
 
 const WORKOUTS   = ['w1','w2','w3'];
+// retired session types. Kept so previously logged a1/a2 sessions still render
+// and bucket correctly in history; they're no longer offered anywhere.
 const ATHLETIC_DAYS = ['a1','a2'];
+const RETIRED_LABELS = { a1:'Athletic \u00b7 Sprint', a2:'Athletic \u00b7 Jump' };
+// label for any session day, including retired ones
+const dayLabel = d => (PROGRAM[d] && PROGRAM[d].label) || RETIRED_LABELS[d] || 'Workout';
 
 const parseTime = t => { if(!t) return 0; const p=String(t).split(':').map(Number);
   if(p.some(isNaN)) return 0; if(p.length===3) return p[0]*3600+p[1]*60+p[2];
@@ -826,7 +792,7 @@ function draftInfo(){
   const d = Store.get().draft;
   if(!draftHasContent(d)) return null;
   const sets = Object.values(d.exercises).reduce((a,ex)=>a+(ex.sets||[]).filter(s=>s.touched&&(s.w!==''||s.r!==''||s.done)).length,0);
-  return { day:d.day, date:d.date, label: PROGRAM[d.day] ? PROGRAM[d.day].label : 'Workout', sets };
+  return { day:d.day, date:d.date, label: dayLabel(d.day), sets };
 }
 
 // last exercise actually logged for a program slot (sticky swaps):
@@ -847,11 +813,6 @@ function nextWorkout(){
   const ls = Store.get().sessions.filter(s=>WORKOUTS.includes(s.day)).sort((a,b)=>a.date<b.date?1:-1)[0];
   if(!ls) return 'w1';
   return WORKOUTS[(WORKOUTS.indexOf(ls.day)+1)%3];
-}
-// athletic rotation: suggest the opposite of the last athletic session
-function nextAthletic(){
-  const ls = Store.get().sessions.filter(s=>ATHLETIC_DAYS.includes(s.day)).sort((a,b)=>a.date<b.date?1:-1)[0];
-  return (!ls || ls.day==='a2') ? 'a1' : 'a2';
 }
 
 const INTENSITIES = [['easy','Easy'],['tempo','Tempo'],['threshold','Threshold'],['vo2','Intervals'],['sprint','Sprints'],['race','Race']];
@@ -970,7 +931,6 @@ const GOALS = [
   {key:'run',      emoji:'\u{1F3C3}',       label:'Runs',     floor:2, good:5},
   {key:'swim',     emoji:'\u{1F3CA}',       label:'Swims',    floor:1, good:2},
   {key:'fence',    emoji:'\u{1F93A}',       label:'Fence',    floor:1, good:2},
-  {key:'athletic', emoji:'\u26A1',          label:'Athletic', floor:1, good:2},   // TBD
 ];
 // which tier a count sits in, plus the next number worth chasing
 function goalTier(g, n) {
