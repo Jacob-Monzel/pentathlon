@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.10-2';
+const APP_VERSION = '2026.08.10-3';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -959,12 +959,16 @@ const TEMPLATES = {
 };
 
 // ---- soft weekly goals (a nudge, not a plan) ----
+// Two different kinds of number, deliberately:
+//   floor — the minimum that makes the week count. No ceiling: more is fine.
+//   cap   — a hard ceiling set by recovery. Lifting is capped; the sport side isn't.
+// Edit these as conditioning changes (running floor should climb as you build back).
 const GOALS = [
-  {key:'lift',  emoji:'\u{1F3CB}\uFE0F', label:'Lifts', target:3},
-  {key:'run',   emoji:'\u{1F3C3}',       label:'Runs',  target:2},
-  {key:'swim',  emoji:'\u{1F3CA}',       label:'Swims', target:1, soft:true, aim:'1\u20132'},
-  {key:'fence', emoji:'\u{1F93A}',       label:'Fence', target:2},
-  {key:'athletic', emoji:'\u26A1',       label:'Athletic', target:1, soft:true, aim:'1\u20132'},
+  {key:'lift',     emoji:'\u{1F3CB}\uFE0F', label:'Lifts',    floor:3, cap:3},
+  {key:'run',      emoji:'\u{1F3C3}',       label:'Runs',     floor:2},
+  {key:'swim',     emoji:'\u{1F3CA}',       label:'Swims',    floor:1},
+  {key:'fence',    emoji:'\u{1F93A}',       label:'Fence',    floor:2},
+  {key:'athletic', emoji:'\u26A1',          label:'Athletic', floor:1},
 ];
 function weekCounts(isos){
   const set = new Set(isos); const c = {lift:0,run:0,swim:0,fence:0,ninja:0,athletic:0};
