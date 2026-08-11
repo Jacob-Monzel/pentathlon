@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.10-4';
+const APP_VERSION = '2026.08.10-5';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -959,17 +959,28 @@ const TEMPLATES = {
 };
 
 // ---- soft weekly goals (a nudge, not a plan) ----
-// Two different kinds of number, deliberately:
-//   floor — the minimum that makes the week count. No ceiling: more is fine.
-//   cap   — a hard ceiling set by recovery. Lifting is capped; the sport side isn't.
-// Edit these as conditioning changes (running floor should climb as you build back).
+// Three kinds of number, deliberately:
+//   floor — the minimum that counts as an acceptable week (amber)
+//   good  — the number you actually want (green). No ceiling above it.
+//   cap   — a hard ceiling set by recovery; exceeding it is a warning (red).
+// Lifting is capped by recovery; the sport side isn't — more running is fine.
+// Edit these as conditioning changes (the running "good" should climb over time).
 const GOALS = [
-  {key:'lift',     emoji:'\u{1F3CB}\uFE0F', label:'Lifts',    floor:3, cap:3},
-  {key:'run',      emoji:'\u{1F3C3}',       label:'Runs',     floor:2},
-  {key:'swim',     emoji:'\u{1F3CA}',       label:'Swims',    floor:1},
-  {key:'fence',    emoji:'\u{1F93A}',       label:'Fence',    floor:2},
-  {key:'athletic', emoji:'\u26A1',          label:'Athletic', floor:1},
+  {key:'lift',     emoji:'\u{1F3CB}\uFE0F', label:'Lifts',    floor:2, good:3, cap:3},
+  {key:'run',      emoji:'\u{1F3C3}',       label:'Runs',     floor:2, good:5},
+  {key:'swim',     emoji:'\u{1F3CA}',       label:'Swims',    floor:1, good:2},
+  {key:'fence',    emoji:'\u{1F93A}',       label:'Fence',    floor:1, good:2},
+  {key:'athletic', emoji:'\u26A1',          label:'Athletic', floor:1, good:2},   // TBD
 ];
+// which tier a count sits in, plus the next number worth chasing
+function goalTier(g, n) {
+  const floor = (g.floor != null) ? g.floor : (g.target != null ? g.target : 1);
+  const good  = (g.good  != null) ? g.good  : floor;
+  if (g.cap && n > g.cap)  return { cls:'over', next:g.cap };
+  if (n >= good)           return { cls:'good', next:null };
+  if (n >= floor)          return { cls:'mid',  next:good };
+  return { cls:'', next:floor };
+}
 function weekCounts(isos){
   const set = new Set(isos); const c = {lift:0,run:0,swim:0,fence:0,ninja:0,athletic:0};
   Store.get().sessions.forEach(s => { if(!set.has(s.date)) return;
