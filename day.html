@@ -37,11 +37,15 @@
       <button data-w="w1">1</button><button data-w="w2">2</button><button data-w="w3">3</button>
     </div>
   </div>
+  <div class="addlift runrow">
+    <button class="primary" id="startRun"></button>
+    <div class="wpick" id="runpick"></div>
+  </div>
   <div class="addsports" id="addsports"></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=202608110157"></script>
+<script src="app.js?v=202608110219"></script>
 <script>
   boot(async () => {
   const date = new URLSearchParams(location.search).get('date') || todayISO();
@@ -101,6 +105,22 @@
     if (b.dataset.w === sugg) b.classList.add('on');
     b.onclick = () => location.href = `workout.html?day=${b.dataset.w}&date=${date}`;
   });
+
+  // add run — highest-priority unfilled slot this week, overridable
+  {
+    const isos = weekDays(0).map(d => d.iso);
+    const nr = nextRun(isos);
+    startRun.innerHTML = `Start ${nr.label} <span class="sugg-tag">${nr.range}</span>`;
+    startRun.onclick = () => location.href =
+      `activity.html?type=run&date=${date}&tpl=${nr.tpl}&slot=${nr.slot.k}`;
+    runpick.innerHTML = RUN_SLOTS.map(sl => {
+      const tpl = sl.rotates ? nextKeyRun() : sl.tpl;
+      const short = sl.rotates ? '\u26a1' : sl.label.replace('Easy + strides','Str').replace('Long easy','Long').replace('Shakeout jog','Shake').replace('Easy','Easy');
+      return `<button data-tpl="${tpl}" data-slot="${sl.k}" class="${sl.k===nr.slot.k?'on':''}" title="${sl.label}">${short}</button>`;
+    }).join('');
+    runpick.querySelectorAll('button').forEach(b => b.onclick = () =>
+      location.href = `activity.html?type=run&date=${date}&tpl=${b.dataset.tpl}&slot=${b.dataset.slot}`);
+  }
 
   // add sports
   addsports.innerHTML = ACT_ORDER.map(t =>

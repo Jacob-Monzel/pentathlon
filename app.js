@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.11-3';
+const APP_VERSION = '2026.08.11-4';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -951,65 +951,63 @@ const prettyDate = iso => { const [y,m,d]=iso.split('-').map(Number); const dt=n
   return dt.toLocaleString('en-US',{weekday:'long', month:'short', day:'numeric'}); };
 
 // ---- suggested session templates (Layer 1: structure, you fill the times) ----
+// ---- run templates -------------------------------------------------------
+// Trimmed to six sessions with distinct jobs. `expand:true` splits a rep block
+// into one row per rep, so a key session becomes "type five times" rather than
+// building segments by hand.
 const TEMPLATES = {
   run: [
-    {id:'easy',  label:'Easy aerobic', desc:'conversational base',
-      s:{mode:'cont',intensity:'easy',unit:'mi',distance:'4',time:''}},
-    {id:'long',  label:'Long run', desc:'steady endurance',
-      s:{mode:'cont',intensity:'easy',unit:'mi',distance:'7',time:''}},
-    {id:'tempo', label:'Tempo', desc:'~20 min comfortably hard',
-      s:{mode:'cont',intensity:'tempo',unit:'mi',distance:'3',time:''}},
-    {id:'thresh',label:'Threshold 3×1mi', desc:'cruise intervals',
+    {id:'easy',  label:'Easy', desc:'conversational \u00b7 the 80%',
+      s:{mode:'cont',intensity:'easy',unit:'mi',distance:'',time:''}},
+    {id:'long',  label:'Long easy', desc:'same effort, more of it',
+      s:{mode:'cont',intensity:'easy',unit:'mi',distance:'',time:''}},
+    {id:'laser', label:'Laser-run 5\u00d7600', desc:'the event \u00b7 600m + ~35s shoot break', expand:true,
+      s:{mode:'struct',intensity:'race',unit:'mi',segments:[
+        {reps:'1',distance:'1',time:'',rest:'',kind:'warmup',label:''},
+        {reps:'5',distance:'0.373',time:'',rest:':35',kind:'interval',label:'600m'},
+        {reps:'1',distance:'1',time:'',rest:'',kind:'cooldown',label:''}]}},
+    {id:'vo2',   label:'VO\u2082 6\u00d7800', desc:'5K\u201310K pace \u00b7 ~90s jog', expand:true,
+      s:{mode:'struct',intensity:'vo2',unit:'mi',segments:[
+        {reps:'1',distance:'1.5',time:'',rest:'',kind:'warmup',label:''},
+        {reps:'6',distance:'0.5',time:'',rest:'1:30',kind:'interval',label:'800m'},
+        {reps:'1',distance:'1.5',time:'',rest:'',kind:'cooldown',label:''}]}},
+    {id:'thresh',label:'Threshold 3\u00d71mi', desc:'comfortably hard \u00b7 raises what you can hold', expand:true,
       s:{mode:'struct',intensity:'threshold',unit:'mi',segments:[
-        {reps:'1',distance:'1',kind:'warmup',time:'',rest:'',label:''},
-        {reps:'3',distance:'1',kind:'interval',time:'',rest:'1:30',label:'@ threshold'},
-        {reps:'1',distance:'1',kind:'cooldown',time:'',rest:'',label:''}]}},
-    {id:'vo2',   label:'VO2 6×800', desc:'aerobic power',
-      s:{mode:'struct',intensity:'vo2',unit:'km',segments:[
-        {reps:'1',distance:'1.5',kind:'warmup',time:'',rest:'',label:''},
-        {reps:'6',distance:'0.8',kind:'interval',time:'',rest:'2:00',label:'800m hard'},
-        {reps:'1',distance:'1.5',kind:'cooldown',time:'',rest:'',label:''}]}},
-    {id:'400s',  label:'400s ×8', desc:'speed-endurance',
-      s:{mode:'struct',intensity:'vo2',unit:'km',segments:[
-        {reps:'1',distance:'1.5',kind:'warmup',time:'',rest:'',label:''},
-        {reps:'8',distance:'0.4',kind:'sprint',time:'',rest:'1:30',label:'400m'},
-        {reps:'1',distance:'1.5',kind:'cooldown',time:'',rest:'',label:''}]}},
-    {id:'laser', label:'Laser-run sim', desc:'5×600m + shoot-break repeats',
-      s:{mode:'struct',intensity:'vo2',unit:'km',segments:[
-        {reps:'1',distance:'1',kind:'warmup',time:'',rest:'',label:''},
-        {reps:'5',distance:'0.6',kind:'interval',time:'',rest:'0:40',label:'600m + shoot break'},
-        {reps:'1',distance:'1',kind:'cooldown',time:'',rest:'',label:''}]}},
-    {id:'strides',label:'Strides / sprints', desc:'top-end speed',
-      s:{mode:'struct',intensity:'sprint',unit:'km',segments:[
-        {reps:'1',distance:'1.5',kind:'warmup',time:'',rest:'',label:''},
-        {reps:'10',distance:'0.1',kind:'sprint',time:'',rest:'1:00',label:'100m'},
-        {reps:'1',distance:'1.5',kind:'cooldown',time:'',rest:'',label:''}]}},
+        {reps:'1',distance:'1',time:'',rest:'',kind:'warmup',label:''},
+        {reps:'3',distance:'1',time:'',rest:'2:00',kind:'tempo',label:'1 mi'},
+        {reps:'1',distance:'1',time:'',rest:'',kind:'cooldown',label:''}]}},
+    {id:'strides',label:'Easy + strides', desc:'easy run, then 6\u00d720s @ 85\u201390%',
+      s:{mode:'struct',intensity:'easy',unit:'mi',segments:[
+        {reps:'1',distance:'3',time:'',rest:'',kind:'warmup',label:'easy run'},
+        {reps:'6',distance:'0.06',time:'',rest:'walk back',kind:'sprint',label:'stride 20s'}]}},
+    {id:'test5k',label:'5K test', desc:'benchmark \u00b7 sets every other pace',
+      s:{mode:'cont',intensity:'race',unit:'mi',distance:'3.107',time:''}},
   ],
   swim: [
     {id:'tech',  label:'Technique', desc:'drills + kick + pull',
       s:{mode:'struct',intensity:'easy',unit:'yd',segments:[
         {reps:'1',distance:'300',kind:'warmup',time:'',rest:'',label:''},
-        {reps:'8',distance:'50',kind:'drill',time:'',rest:':15',label:'catch-up / fist'},
+        {reps:'8',distance:'50',kind:'drill',time:'',rest:':20',label:''},
         {reps:'4',distance:'50',kind:'kick',time:'',rest:':20',label:''},
         {reps:'4',distance:'50',kind:'pull',time:'',rest:':20',label:''},
         {reps:'1',distance:'200',kind:'cooldown',time:'',rest:'',label:''}]}},
-    {id:'aero',  label:'Aerobic base', desc:'steady swim',
+    {id:'aer',   label:'Aerobic base', desc:'steady swim',
       s:{mode:'cont',intensity:'easy',unit:'yd',distance:'1500',time:''}},
-    {id:'thresh',label:'Threshold 10×100', desc:'CSS pace',
+    {id:'css',   label:'Threshold 10\u00d7100', desc:'CSS pace',
       s:{mode:'struct',intensity:'threshold',unit:'yd',segments:[
         {reps:'1',distance:'300',kind:'warmup',time:'',rest:'',label:''},
-        {reps:'10',distance:'100',kind:'swim',time:'',rest:':15',label:'@ threshold'},
+        {reps:'10',distance:'100',kind:'swim',time:'',rest:':15',label:''},
         {reps:'1',distance:'200',kind:'cooldown',time:'',rest:'',label:''}]}},
-    {id:'race',  label:'200 race-pace', desc:'speed-endurance',
-      s:{mode:'struct',intensity:'vo2',unit:'yd',segments:[
+    {id:'race',  label:'100 race-pace', desc:'the pentathlon distance',
+      s:{mode:'struct',intensity:'race',unit:'yd',segments:[
         {reps:'1',distance:'300',kind:'warmup',time:'',rest:'',label:''},
-        {reps:'8',distance:'50',kind:'swim',time:'',rest:':40',label:'@ 200 pace'},
+        {reps:'8',distance:'50',kind:'swim',time:'',rest:':45',label:'race pace'},
         {reps:'4',distance:'25',kind:'swim',time:'',rest:':30',label:'fast'},
         {reps:'1',distance:'200',kind:'cooldown',time:'',rest:'',label:''}]}},
     {id:'sprint',label:'Sprint / speed', desc:'top-end',
       s:{mode:'struct',intensity:'sprint',unit:'yd',segments:[
         {reps:'1',distance:'300',kind:'warmup',time:'',rest:'',label:''},
-        {reps:'10',distance:'25',kind:'swim',time:'',rest:':30',label:'sprint'},
+        {reps:'10',distance:'25',kind:'swim',time:'',rest:':45',label:''},
         {reps:'1',distance:'200',kind:'cooldown',time:'',rest:'',label:''}]}},
     {id:'mixed', label:'Mixed sets', desc:'pull / kick / build',
       s:{mode:'struct',intensity:'tempo',unit:'yd',segments:[
@@ -1020,6 +1018,53 @@ const TEMPLATES = {
         {reps:'1',distance:'200',kind:'cooldown',time:'',rest:'',label:''}]}},
   ],
 };
+
+// Split rep blocks into one row per rep, so a key session is "type five times"
+// instead of building segments by hand. Warm-up/cool-down stay as single rows.
+function expandSegments(segs) {
+  const out = [];
+  (segs || []).forEach(g => {
+    const n = +g.reps || 1;
+    if (n > 1 && /interval|sprint|tempo|swim|drill|kick|pull/.test(g.kind)) {
+      for (let i = 0; i < n; i++) out.push({ ...g, reps:'1', label:(g.label||'') + ' #' + (i+1) });
+    } else out.push({ ...g });
+  });
+  return out;
+}
+
+// ---- run slot ladder -----------------------------------------------------
+// Priority order: whatever number of runs you get, you get the right ones.
+// Easy first — it's the foundation and the safe floor at low frequency.
+const RUN_SLOTS = [
+  {k:'easy',    label:'Easy',           tpl:'easy',    min:25, max:45},
+  {k:'key',     label:'Key session',    rotates:true,  min:35, max:45},
+  {k:'strides', label:'Easy + strides', tpl:'strides', min:30, max:40},
+  {k:'long',    label:'Long easy',      tpl:'long',    min:45, max:70},
+  {k:'key2',    label:'Second key',     rotates:true,  min:35, max:45},
+  {k:'shake',   label:'Shakeout jog',   tpl:'easy',    min:20, max:30},
+];
+// the rotating hard session: event-specific first, then ceiling, then the
+// low-impact option (pick threshold when the knee is grumbling)
+const KEY_ROTATION = ['laser','vo2','thresh'];
+const KEY_LABEL = { laser:'Laser-run 5\u00d7600', vo2:'VO\u2082 6\u00d7800', thresh:'Threshold 3\u00d71mi' };
+
+// which key session is up next (cycles across weeks, like the lift rotation)
+function nextKeyRun() {
+  const last = (Store.get().activities || []).filter(a => a.type === 'run' && a.key)
+    .sort((a,b) => a.date === b.date ? 0 : (a.date < b.date ? 1 : -1))[0];
+  if (!last) return KEY_ROTATION[0];
+  const i = KEY_ROTATION.indexOf(last.key);
+  return KEY_ROTATION[(i + 1) % KEY_ROTATION.length];
+}
+// highest-priority slot not yet filled this week
+function nextRun(isos) {
+  const done = new Set((Store.get().activities || [])
+    .filter(a => a.type === 'run' && a.slot && isos.includes(a.date)).map(a => a.slot));
+  const slot = RUN_SLOTS.find(s => !done.has(s.k)) || RUN_SLOTS[RUN_SLOTS.length - 1];
+  const tpl = slot.rotates ? nextKeyRun() : slot.tpl;
+  return { slot, tpl, label: slot.rotates ? KEY_LABEL[tpl] : slot.label,
+           range: `${slot.min}\u2013${slot.max} min` };
+}
 
 // ---- soft weekly goals (a nudge, not a plan) ----
 // Three kinds of number, deliberately:

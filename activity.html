@@ -37,7 +37,7 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=202608110157"></script>
+<script src="app.js?v=202608110219"></script>
 <script>
   boot(async () => {
   const p = new URLSearchParams(location.search);
@@ -131,10 +131,7 @@
     // template picker — load a full session, keep any note already typed
     form.querySelector('#tpls').onclick = e => { const b=e.target.closest('button'); if(!b) return;
       const t=TEMPLATES[type].find(x=>x.id===b.dataset.t); if(!t) return;
-      const keepNote=state.note;
-      state=Object.assign({type,date,note:keepNote},JSON.parse(JSON.stringify(t.s)));
-      if(!state.segments) state.segments=[];
-      renderCardio(); };
+      loadTemplate(t); };
 
     // intensity / unit / mode selectors
     form.querySelector('#intensity').onclick = e => { const b=e.target.closest('button'); if(!b)return;
@@ -155,6 +152,16 @@
 
     renderSegs();
     form.querySelector('#addSeg').onclick=()=>{ state.segments.push({reps:'1',distance:'',time:'',rest:'',kind:kinds[0],label:''}); renderSegs(); };
+  }
+
+  // load a template into the form; expand rep blocks into one row per rep
+  function loadTemplate(t) {
+    const keepNote = state.note;
+    state = Object.assign({ type, date, note: keepNote }, JSON.parse(JSON.stringify(t.s)));
+    if (!state.segments) state.segments = [];
+    if (t.expand) state.segments = expandSegments(state.segments);
+    state.tpl = t.id;
+    renderCardio();
   }
 
   function renderSegs() {
@@ -191,13 +198,17 @@
   }
   function updTotal(){ const t=form.querySelector('#segTotal'); if(t) t.textContent=`Total: ${actTotals(state).dist} ${state.unit}`; }
 
+  const wantTpl = p.get('tpl'), wantSlot = p.get('slot');
   if (isCardio) {
     renderCardio();
+    if (!existing && wantTpl) { const t = TEMPLATES[type].find(x => x.id === wantTpl); if (t) loadTemplate(t); }
     save.onclick = () => {
       syncDur();
       state.note = (form.querySelector('#note').value||'').trim();
       const a = { id: editId || undefined, ...state };
       if (a.mode==='cont'){ a.segments=[]; } else { a.distance=''; a.time=''; }
+      if (wantSlot) a.slot = wantSlot;
+      if (state.tpl && KEY_ROTATION.includes(state.tpl)) a.key = state.tpl;
       saveActivity({ ...a, ...rateFields() }); backTo();
     };
   } else {
