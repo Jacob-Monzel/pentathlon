@@ -63,7 +63,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=202608110150"></script>
+<script src="app.js?v=202608110157"></script>
 <script>
   boot(async () => {
   const params = new URLSearchParams(location.search);
@@ -136,14 +136,16 @@
     const f = tier().f * (draft.deload ? DELOAD.loadF : 1);
     return round5(+raw * f);
   };
-  const seedW = w => w;   // seeding now goes through targetW
+  // sets come from the program (so program changes take effect), eased for a
+  // cooked day. A deload cuts scope, not sets — see inScope below.
   const setCountFor = slot => {
-    let n = (prevSets(day, slot.k) || []).length || slot.sets;
-    if (draft.deload) n = Math.max(slot.t === 'top' || slot.t === 'pullup' ? 2 : 1, Math.round(n * DELOAD.setF));
-    else if (draft.readiness === 'cooked') n = Math.max(1, n - 1);
+    let n = slot.sets;
+    if (draft.readiness === 'cooked') n = Math.max(1, n - 1);
     return n;
   };
-  const inScope = slot => slotPriority(slot) <= TIMECAP[draft.timecap].pri;
+  // deload = tier 1 only, same lifts, lighter — volume-first, per the evidence
+  const scopeCap = () => Math.min(TIMECAP[draft.timecap].pri, draft.deload ? DELOAD.tierCap : 3);
+  const inScope = slot => slotPriority(slot) <= scopeCap();
 
   function seedSlot(slot) {
     const st = exState(slot.k);
@@ -198,7 +200,7 @@
     seg(segGym, GYM_ORDER, GYMS, draft.gym, v => { draft.gym = v; resuggest(); applyPlan(); save(); renderCheckin(); render(); });
     const bits = [];
     if (!tier().prog) bits.push('targets eased \u00b7 won\u2019t affect tracking');
-    if (draft.deload) bits.push('deload \u00b7 sets cut, stop 2+ reps shy');
+    if (draft.deload) bits.push('deload \u00b7 tier 1 only, stop 2+ reps shy');
     if (JOINTS[draft.joints].note) bits.push(JOINTS[draft.joints].note);
     if (draft.timecap !== 'full') bits.push('extras marked optional');
     if (draft.gym === 'other') bits.push('one-off gym \u00b7 won\u2019t affect your tracked numbers');
@@ -231,7 +233,7 @@
   // ---------- reactive deload: offered only when fatigue markers cluster ----------
   function renderDeload() {
     if (draft.deload) {
-      deloadBanner.innerHTML = `<div class="dbanner on"><div><b>Deload session</b><span>same lifts \u00b7 half the sets \u00b7 lighter \u00b7 stop well shy of failure</span></div><button id="dOff">Undo</button></div>`;
+      deloadBanner.innerHTML = `<div class="dbanner on"><div><b>Deload session</b><span>core lifts only \u00b7 lighter \u00b7 stop well shy of failure</span></div><button id="dOff">Undo</button></div>`;
       dOff.onclick = () => { draft.deload = false; applyPlan(); save(); renderDeload(); renderCheckin(); render(); };
       return;
     }
@@ -256,7 +258,7 @@
         sgTxt = `suggested ${shownW}` + (eased ? ' · eased' : (sg.tag && sg.tag !== 'same' && sg.tag !== 'hold' ? ' · ' + sg.tag : ''));
       }
       if (sg && sg.borrowed && sgTxt) sgTxt += ' \u00b7 from your other gym';
-      const bs = (slot.t === 'top' || slot.t === 'pullup' || slot.rpe) ? bestSet(slot.k) : null;
+      const bs = (slot.t === 'top' || slot.t === 'pullup' || slot.rpe) ? bestSet(slot.k, draft.gym) : null;
       const bestTxt = bs ? `best ${bs.added ? '+' : ''}${bs.w}\u00d7${bs.r} · ${bs.ago === 0 ? 'current best' : bs.ago + ' session' + (bs.ago > 1 ? 's' : '') + ' ago'}` : '';
       const optional = !inScope(slot);
       const jointHint = (draft.joints === 'sore' || draft.joints === 'pain') && slotPriority(slot) === 1 && (slot.alts||[]).length
@@ -280,6 +282,7 @@
         opts.map(o => `<button data-idx="${idx}" data-k="${o.k}" data-n="${o.n}">${o.k===slot.baseK?'★ ':''}${o.n}</button>`).join('') + `</div>`;
       // tier heading before the first exercise of each tier
       const tier = slotPriority(slot);
+      if (draft.deload && tier > DELOAD.tierCap) return;
       if (tier !== lastTier) {
         const h = document.createElement('div');
         h.className = 'tierhead' + (tier === 3 ? ' t3' : '');
@@ -289,6 +292,7 @@
         wlist.appendChild(h);
         lastTier = tier;
       }
+      if (draft.deload && tier > DELOAD.tierCap) return;   // deload: tier 1 only
       if (tier === 3 && !t3open) return;   // collapsed by default — keeps the list short
       const card = document.createElement('div');
       card.className = 'exc' + (optional ? ' optional' : '');
@@ -402,7 +406,7 @@
     const val = slot.t === 'pullup'
       ? e1rm((+(bwOn(logDate) || latestBodyweight() || 0)) + w, r)
       : e1rm(w, r);
-    const best = bestE1rm(k);   // saved sessions only — the in-progress draft isn't counted yet
+    const best = bestE1rm(k, draft.gym);   // this gym's history — machines differ
     if (best > 0 && val > best) row.classList.add('pr');
   }
 

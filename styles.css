@@ -62,6 +62,15 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
   padding:7px 13px;border-radius:20px;background:var(--surface);border:1px solid var(--line);
   color:var(--muted);box-shadow:var(--shadow);pointer-events:none;max-width:92%;text-align:center}
 .netbadge.warn{background:#FFF7ED;border-color:#FED7AA;color:#9A5B12}
+.fold{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.fold summary{list-style:none;cursor:pointer;padding:13px 15px;font-size:13.5px;font-weight:700;display:flex;
+  align-items:center;justify-content:space-between}
+.fold summary::-webkit-details-marker{display:none}
+.fold summary::after{content:'\203a';color:var(--faint);font-size:18px;transform:rotate(90deg);transition:transform .15s}
+.fold[open] summary::after{transform:rotate(-90deg)}
+.fold > div{padding:0 15px 13px}
+.fold .rm{box-shadow:none;border:0;padding:0;margin:0}
+.vrow .vn em{font-style:normal;color:var(--accent);font-family:var(--mono)}
 .verbox{display:flex;flex-direction:column;gap:9px;margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}
 .verline{font-family:var(--mono);font-size:12px;color:var(--muted)}
 .verline b{color:var(--text)}

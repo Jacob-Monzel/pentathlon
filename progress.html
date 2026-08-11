@@ -31,6 +31,10 @@
   <div id="loadCard"></div>
   <div class="section-label">Load trend · 8 weeks</div>
   <div id="trendCard"></div>
+  <details class="fold">
+    <summary>Muscle volume · logged sets</summary>
+    <div id="volCard"></div>
+  </details>
   <div class="section-label">Estimated 1RM</div>
   <div class="liftpickwrap"><select id="liftPick"></select></div>
   <div id="oneRM"></div>
@@ -41,7 +45,7 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=202608110150"></script>
+<script src="app.js?v=202608110157"></script>
 <script>
   boot(async () => {
   function spark(vals) {
@@ -94,6 +98,26 @@
         return `<div class="barcol"><div class="barwrap"><div class="bar${t.offset===0?' cur':''}" style="height:${Math.max(h,2)}%"></div></div><span>${lbl}</span></div>`;
       }).join('')}</div>
       <div class="rm-meta">weekly load (AU) \u00b7 peak ${Math.max(...tvals)}</div></div>`;
+  }
+
+  // ---- muscle volume from LOGGED sets (collapsed by default) ----
+  {
+    const wkIsos = weekDays(0).map(d => d.iso);
+    const isos4 = [];
+    for (let o = -3; o <= 0; o++) weekDays(o).forEach(d => isos4.push(d.iso));
+    const wk = loggedVolume(wkIsos), mo = loggedVolume(isos4);
+    if (!mo.length) {
+      volCard.innerHTML = `<div class="rm"><div class="rm-meta">no lifts logged yet</div></div>`;
+    } else {
+      const mx = Math.max(...mo.map(v => v.sets));
+      const wkMap = Object.fromEntries(wk.map(v => [v.group, v.sets]));
+      volCard.innerHTML =
+        `<div class="rm"><div class="rm-meta">effective sets \u00b7 secondary counted at \u00bd \u00b7 last 4 weeks (this week)</div>
+          <div class="vol">${mo.map(v =>
+            `<div class="vrow"><span class="vg">${v.group}</span>
+               <span class="vbarwrap"><span class="vbar" style="width:${Math.round(v.sets/mx*100)}%"></span></span>
+               <span class="vn">${v.sets}<em>${wkMap[v.group] ? ' \u00b7 ' + wkMap[v.group] : ''}</em></span></div>`).join('')}</div></div>`;
+    }
   }
 
   // ---- estimated 1RM, any lift you've logged ----

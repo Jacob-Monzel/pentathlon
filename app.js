@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.11-2';
+const APP_VERSION = '2026.08.11-3';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -285,7 +285,7 @@ function topHistory(k) {
   const out = [];
   Store.get().sessions.forEach(s => {
     const e = s.exercises && s.exercises[k];
-    if (e && e.sets && e.sets[0] && e.sets[0].w) out.push({ date:s.date, id:s.id, bw:(s.bodyweight || bwOn(s.date)), reduced:!!s.reduced, ...e.sets[0] });
+    if (e && e.sets && e.sets[0] && e.sets[0].w) out.push({ date:s.date, id:s.id, gym:s.gym, bw:(s.bodyweight || bwOn(s.date)), reduced:!!s.reduced, ...e.sets[0] });
   });
   return out.sort((a,b) => a.date === b.date ? ((a.id||0)-(b.id||0)) : (a.date < b.date ? -1 : 1));
 }
@@ -310,17 +310,19 @@ function anchorSession(k, gym) {
   return s ? { date:s.date, bw:s.bodyweight, sets:s.exercises[k].sets, gym:s.gym, fromOtherGym } : null;
 }
 
-function e1rmSeries(k) {
-  return topHistory(k).map(e => {
+function e1rmSeries(k, gym) {
+  return topHistory(k).filter(e => !gym || normGym(e.gym || 'apt') === normGym(gym)).map(e => {
     if (k === 'pullup' && +e.bw) return { date:e.date, v:e1rm((+e.bw)+(+e.w||0), e.r), basis:'total' };
     return { date:e.date, v:e1rm(e.w, e.r), basis: k === 'pullup' ? 'added' : 'std' };
   });
 }
 // best est-1RM ever logged for a lift (from saved sessions only) — used for in-workout PR flags
-function bestE1rm(k) { const s = e1rmSeries(k); return s.length ? Math.max(...s.map(x => x.v)) : 0; }
+// best est-1RM for a lift. Pass a gym to keep machine lifts honest — a 300 lb
+// apartment leg press is not a PR target on a different machine at Penn.
+function bestE1rm(k, gym) { const s = e1rmSeries(k, gym); return s.length ? Math.max(...s.map(x => x.v)) : 0; }
 // the actual set behind your best est-1RM, and how many sessions back it was (0 = current best).
-function bestSet(k) {
-  const h = topHistory(k);
+function bestSet(k, gym) {
+  const h = topHistory(k).filter(e => !gym || normGym(e.gym || 'apt') === normGym(gym));
   if (!h.length) return null;
   let bi = -1, bv = 0;
   h.forEach((e,i) => { const v = (k==='pullup' && +e.bw) ? e1rm((+e.bw)+(+e.w||0), e.r) : e1rm(e.w, e.r); if (v > bv) { bv = v; bi = i; } });
@@ -363,7 +365,10 @@ function suggest(k, ex, gym) {
 // Fires only when fatigue markers CLUSTER (>=2), never on a schedule. Evidence
 // favours as-needed deloads over calendar ones; a deload taken while fresh costs
 // you progress. This informs, it never forces — programming stays yours/Derek's.
-const DELOAD = { loadF: 0.9, setF: 0.5, minGapDays: 21, minSessions: 6 };
+// A deload keeps the same lifts and frequency but strips volume: tier 1 only,
+// load eased ~10%, stop well shy of failure. That matches what the athlete
+// survey data actually describes (volume down, frequency and exercises kept).
+const DELOAD = { loadF: 0.9, tierCap: 1, minGapDays: 21, minSessions: 6 };
 const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
 
 function lastDeloadDate() {
@@ -431,6 +436,61 @@ function renderSrpePicker(el, current, onPick) {
     if (lbl) lbl.textContent = SRPE_LABEL(b.dataset.v);
     onPick(+b.dataset.v);
   });
+}
+
+// ---- weekly volume from LOGGED sets (not the plan) ----
+// primary 1.0, secondary 0.5. Covers program mains + their alternates.
+const EX_MUSCLES = {
+  bench:[['Chest',1],['Triceps',.5],['Front delts',.5]], bench_bb:[['Chest',1],['Triceps',.5],['Front delts',.5]],
+  bench_db:[['Chest',1],['Triceps',.5],['Front delts',.5]], chestpress:[['Chest',1],['Triceps',.5],['Front delts',.5]],
+  incline:[['Chest',1],['Triceps',.5],['Front delts',.5]], incline_bb:[['Chest',1],['Triceps',.5],['Front delts',.5]],
+  incline_db:[['Chest',1],['Triceps',.5],['Front delts',.5]], incline_machine:[['Chest',1],['Triceps',.5],['Front delts',.5]],
+  ohp:[['Front delts',1],['Triceps',.5]], ohp_db:[['Front delts',1],['Triceps',.5]],
+  ohp_machine:[['Front delts',1],['Triceps',.5]], ohp_landmine:[['Front delts',1],['Triceps',.5]],
+  halfkneelpress:[['Front delts',1],['Triceps',.5],['Core',.5]],
+  cablerow:[['Back',1],['Biceps',.5],['Rear delts',.5]], row:[['Back',1],['Biceps',.5],['Rear delts',.5]],
+  row_db:[['Back',1],['Biceps',.5],['Rear delts',.5]], row_machine:[['Back',1],['Biceps',.5],['Rear delts',.5]],
+  pullup:[['Back',1],['Biceps',.5]], pullup_neutral:[['Back',1],['Biceps',.5]], chinup:[['Back',1],['Biceps',.5]],
+  pulldown_wide:[['Back',1],['Biceps',.5]],
+  legpress:[['Quads',1],['Glutes',.5]], hacksquat:[['Quads',1],['Glutes',.5]], gobletsq:[['Quads',1],['Glutes',.5]],
+  boxsq:[['Quads',1],['Glutes',.5]], gobletbox:[['Quads',1],['Glutes',.5]], frontsq:[['Quads',1],['Glutes',.5]],
+  backsq:[['Quads',1],['Glutes',.5]],
+  wallsq:[['Quads',1]], kneeext:[['Quads',1]], legpress_slow:[['Quads',1]], goblet_slow:[['Quads',1]], spanishsq:[['Quads',1]],
+  rdl:[['Hamstrings',1],['Glutes',.5]], rdl_db:[['Hamstrings',1],['Glutes',.5]],
+  pullthrough:[['Hamstrings',1],['Glutes',1]], backext:[['Hamstrings',1],['Glutes',.5]], hipthrust:[['Glutes',1],['Hamstrings',.5]],
+  legcurl:[['Hamstrings',1]], legcurl_seated:[['Hamstrings',1]], slider_curl:[['Hamstrings',1]], nordic:[['Hamstrings',1]],
+  pmtap:[['Glutes',1],['Hamstrings',.5]], slrdl:[['Glutes',1],['Hamstrings',.5]], stepdown:[['Glutes',1],['Quads',.5]],
+  sumosq:[['Adductors',1],['Quads',.5],['Glutes',.5]], splitsq:[['Quads',1],['Glutes',.5]],
+  bulgarian:[['Quads',1],['Glutes',.5]], reverselunge:[['Quads',1],['Glutes',.5]],
+  cossack:[['Adductors',1],['Glutes',.5],['Quads',.5]], latlunge:[['Adductors',1],['Glutes',.5]],
+  lateralstepup:[['Glutes',1],['Quads',.5]],
+  copenhagen:[['Adductors',1],['Core',.5]], adductor_machine:[['Adductors',1]], ballsqueeze:[['Adductors',1]],
+  pallof:[['Core',1]], pallof_kneel:[['Core',1]], chop:[['Core',1]], deadbug:[['Core',1]],
+  rollout:[['Core',1]], plank_ext:[['Core',1]],
+  carry:[['Core',1],['Grip',1],['Traps',.5]], farmerhold:[['Grip',1],['Core',.5]],
+  deadhang:[['Grip',1],['Core',.5]], towelhang:[['Grip',1],['Core',.5]],
+  calf_legpress:[['Calves',1]], calf_stand:[['Calves',1]], calf_seated:[['Calves',1]],
+  calf_db_seated:[['Calves',1]], calf_single:[['Calves',1]],
+  latraise:[['Side delts',1]], latraise_cable:[['Side delts',1]], latraise_machine:[['Side delts',1]],
+  facepull:[['Rear delts',1]], reardelt:[['Rear delts',1]], bandpull:[['Rear delts',1]],
+  dbcurl:[['Biceps',1]], curl_bb:[['Biceps',1]], curl_cable:[['Biceps',1]], curl_hammer:[['Biceps',1]],
+  pushdown:[['Triceps',1]], tri_oh:[['Triceps',1]], skullcrusher:[['Triceps',1]], dips:[['Triceps',1],['Chest',.5]],
+  tibraise:[['Tibialis',1]], tib_kb:[['Tibialis',1]],
+  armbar:[['Core',1]], windmill:[['Core',1]], halo:[['Core',1]],
+};
+// actual effective sets per muscle over a set of dates
+function loggedVolume(isos) {
+  const set = new Set(isos), t = {};
+  Store.get().sessions.forEach(s => {
+    if (!set.has(s.date)) return;
+    Object.entries(s.exercises || {}).forEach(([k, e]) => {
+      const n = (e.sets || []).filter(x => x.w !== '' || x.r !== '').length;
+      if (!n) return;
+      (EX_MUSCLES[k] || [['Other', 1]]).forEach(([g, w]) => { t[g] = (t[g] || 0) + n * w; });
+    });
+  });
+  return Object.entries(t).map(([group, sets]) => ({ group, sets: Math.round(sets * 10) / 10 }))
+    .sort((a, b) => b.sets - a.sets);
 }
 
 // ---- analytics helpers -----------------------------------------------------
