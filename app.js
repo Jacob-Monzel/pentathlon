@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.10-1';
+const APP_VERSION = '2026.08.10-2';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -223,23 +223,44 @@ const Auth = {
 // gate + sync, then render the page. Falls back to local-only if Supabase isn't configured yet.
 const SEEN_KEY = 'pentathlon_signed_in';
 const hasSignedInBefore = () => { try { return localStorage.getItem(SEEN_KEY) === '1'; } catch (e) { return false; } };
+const TIMED_OUT = '__timeout__';
+// Never let a hanging request hold the UI hostage. Weak gym signal is worse than
+// no signal: requests stall instead of failing, so everything gets a deadline.
+function withTimeout(p, ms) {
+  let t;
+  return Promise.race([
+    Promise.resolve(p).catch(() => null).then(v => { clearTimeout(t); return v; }),
+    new Promise(r => { t = setTimeout(() => r(TIMED_OUT), ms); }),
+  ]);
+}
+let badgeTimer = null;
+function startBadge() { netBadge(); if (!badgeTimer) badgeTimer = setInterval(netBadge, 4000); }
+
 async function boot(render) {
   Cloud.init();
-  if (!Cloud.ready()) { render(); netBadge(); return; }
-  let session = null;
-  try { session = await Cloud.session(); } catch (e) { session = null; }
+  if (!Cloud.ready()) { render(); startBadge(); return; }
+
+  // Offline: don't touch the network at all — render instantly from the local cache.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false && hasSignedInBefore()) {
+    render(); startBadge(); return;
+  }
+
+  const session = await withTimeout(Cloud.session(), 3500);
+  if (session === TIMED_OUT) {
+    // Signal too weak to verify the session — trust the device and carry on locally
+    // rather than bouncing to a login page that also can't reach the network.
+    if (hasSignedInBefore()) { render(); startBadge(); return; }
+    location.replace('login.html'); return;
+  }
   if (!session) {
-    // Offline in a gym: don't bounce to a login page that can't reach the network.
-    // If this device has signed in before, run local-only — everything still logs
-    // to localStorage and pushes when signal returns.
-    if (!navigator.onLine && hasSignedInBefore()) { render(); netBadge(); return; }
+    if (!navigator.onLine && hasSignedInBefore()) { render(); startBadge(); return; }
     location.replace('login.html'); return;
   }
   try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {}
-  await Store.pull();
+
+  await withTimeout(Store.pull(), 3500);   // stale data beats no data
   render();
-  netBadge();
-  setInterval(netBadge, 4000);
+  startBadge();
 }
 
 // ---- helpers ----

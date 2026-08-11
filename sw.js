@@ -4,7 +4,7 @@
 //            (2) make cache updates deterministic instead of iOS's guess.
 //  Bump CACHE_VERSION on every deploy — it wipes old caches on activate.
 // ============================================================
-const CACHE_VERSION = '2026.08.10-1';
+const CACHE_VERSION = '2026.08.10-2';
 const CACHE = 'pentathlon-' + CACHE_VERSION;
 
 // The app shell. Everything needed to open and log a workout with zero network.
@@ -42,18 +42,20 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (isApi(url)) return;                           // let the app's own error handling deal with it
 
-  // Navigations: network-first so a deploy shows up immediately when online,
-  // cache fallback so the app still opens with no signal.
+  // Navigations: try the network briefly so a deploy shows up when online, but
+  // fall back to cache fast. A stalled request on weak gym signal must never
+  // leave the app hanging on a blank screen.
   if (req.mode === 'navigate') {
     e.respondWith((async () => {
+      const cached = await caches.match(req, { ignoreSearch: true });
       try {
-        const fresh = await fetch(req);
-        const c = await caches.open(CACHE);
-        c.put(req, fresh.clone());
+        const fresh = await Promise.race([
+          fetch(req).then(res => { caches.open(CACHE).then(c => c.put(req, res.clone())); return res; }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('slow')), 2500)),
+        ]);
         return fresh;
       } catch (err) {
-        const cached = await caches.match(req, { ignoreSearch: true });
-        return cached || caches.match('index.html') || Response.error();
+        return cached || (await caches.match('index.html')) || Response.error();
       }
     })());
     return;
