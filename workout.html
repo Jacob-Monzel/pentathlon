@@ -63,7 +63,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=202608110144"></script>
+<script src="app.js?v=202608110150"></script>
 <script>
   boot(async () => {
   const params = new URLSearchParams(location.search);
@@ -126,7 +126,7 @@
   if (!draft.readiness) draft.readiness = 'normal';
   if (!draft.joints) draft.joints = 'ok';
   if (!draft.timecap) draft.timecap = 'full';
-  if (!draft.gym) draft.gym = 'home';
+  if (!draft.gym) draft.gym = 'apt';
   const tier = () => READINESS[draft.readiness] || READINESS.normal;
   // effective target for a slot: pause progression when not fresh, scale by tier, ease again on a deload
   const targetW = sg => {
@@ -148,7 +148,7 @@
   function seedSlot(slot) {
     const st = exState(slot.k);
     if (st.sets.length) return;
-    const sg = suggest(slot.k, slot);
+    const sg = suggest(slot.k, slot, draft.gym);
     st.sugg = sg || null;
     const w0 = targetW(sg);
     const n = setCountFor(slot);
@@ -160,6 +160,15 @@
     }
   }
   slots.forEach(seedSlot); save();
+
+  // gym changed → suggestions must come from that gym's history
+  function resuggest() {
+    slots.forEach(slot => {
+      const st = exState(slot.k);
+      if (st.sets.some(x => x.touched)) return;   // don't disturb work already done
+      st.sugg = suggest(slot.k, slot, draft.gym) || null;
+    });
+  }
 
   // re-apply the plan when any check-in answer changes (never overwrites typed values)
   function applyPlan() {
@@ -186,13 +195,13 @@
     seg(segReady, READY_ORDER, READINESS, draft.readiness, v => { draft.readiness = v; applyPlan(); save(); renderCheckin(); render(); });
     seg(segJoint, JOINT_ORDER, JOINTS, draft.joints, v => { draft.joints = v; save(); renderCheckin(); render(); });
     seg(segTime, TIME_ORDER, TIMECAP, draft.timecap, v => { draft.timecap = v; applyPlan(); save(); renderCheckin(); render(); });
-    seg(segGym, GYM_ORDER, GYMS, draft.gym, v => { draft.gym = v; save(); renderCheckin(); render(); });
+    seg(segGym, GYM_ORDER, GYMS, draft.gym, v => { draft.gym = v; resuggest(); applyPlan(); save(); renderCheckin(); render(); });
     const bits = [];
     if (!tier().prog) bits.push('targets eased \u00b7 won\u2019t affect tracking');
     if (draft.deload) bits.push('deload \u00b7 sets cut, stop 2+ reps shy');
     if (JOINTS[draft.joints].note) bits.push(JOINTS[draft.joints].note);
     if (draft.timecap !== 'full') bits.push('extras marked optional');
-    if (draft.gym === 'other') bits.push('other gym \u00b7 won\u2019t affect your usual numbers');
+    if (draft.gym === 'other') bits.push('one-off gym \u00b7 won\u2019t affect your tracked numbers');
     ciNote.innerHTML = bits.length ? bits.join(' \u00b7 ') : '';
     ciNote.className = 'ci-note' + (draft.joints === 'pain' ? ' warn' : '');
     renderSummary();
@@ -204,7 +213,7 @@
     if (draft.joints !== 'ok') bits.push(JOINTS[draft.joints].label.toLowerCase());
     if (draft.timecap !== 'full') bits.push(TIMECAP[draft.timecap].label);
     if (draft.deload) bits.push('deload');
-    if (draft.gym === 'other') bits.push('other gym');
+    if (draft.gym !== 'apt') bits.push(GYMS[draft.gym].label);
     ciSummary.hidden = false;
     ciSummary.className = 'cisummary' + (draft.joints === 'pain' || !tier().prog || draft.deload ? ' flag' : '');
     ciSummary.innerHTML = `<span>${bits.join(' \u00b7 ')}</span><em>change</em>`;
@@ -246,6 +255,7 @@
         const eased = !tier().prog || draft.deload;
         sgTxt = `suggested ${shownW}` + (eased ? ' · eased' : (sg.tag && sg.tag !== 'same' && sg.tag !== 'hold' ? ' · ' + sg.tag : ''));
       }
+      if (sg && sg.borrowed && sgTxt) sgTxt += ' \u00b7 from your other gym';
       const bs = (slot.t === 'top' || slot.t === 'pullup' || slot.rpe) ? bestSet(slot.k) : null;
       const bestTxt = bs ? `best ${bs.added ? '+' : ''}${bs.w}\u00d7${bs.r} · ${bs.ago === 0 ? 'current best' : bs.ago + ' session' + (bs.ago > 1 ? 's' : '') + ' ago'}` : '';
       const optional = !inScope(slot);
@@ -431,7 +441,7 @@
     });
     const note = fbNote.value.trim();
     Store.update(s => {
-      s.sessions.push({ id: Date.now(), day, date: logDate, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, readiness: draft.readiness || 'normal', joints: draft.joints || 'ok', gym: draft.gym || 'home', ...(srpeVal ? { srpe: srpeVal } : {}), ...(durMin.value ? { minutes: +durMin.value } : {}), ...(draft.deload ? { deload: true } : {}) });
+      s.sessions.push({ id: Date.now(), day, date: logDate, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, readiness: draft.readiness || 'normal', joints: draft.joints || 'ok', gym: draft.gym || 'apt', ...(srpeVal ? { srpe: srpeVal } : {}), ...(durMin.value ? { minutes: +durMin.value } : {}), ...(draft.deload ? { deload: true } : {}) });
       if (flareVal && flareVal !== 'None') s.episodes.push({ id: Date.now(), date: logDate, what: flareVal, ctx: note || 'post-workout' });
       s.draft = null;
     });

@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.11-1';
+const APP_VERSION = '2026.08.11-2';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -25,7 +25,7 @@ const PROGRAM = {
       alts:[{k:'bench_bb',n:'Barbell bench (w/ spotter)'},{k:'bench_db',n:'DB bench press'},{k:'chestpress',n:'Machine chest press'}]},
     {k:'legpress',n:'Leg press', t:'work', tier:1, sets:3, reps:'5\u20138', rpe:7, rest:90,
       alts:[{k:'hacksquat',n:'Hack squat'},{k:'gobletsq',n:'Goblet squat'}]},
-    {k:'cablerow',n:'Seated cable row', t:'work', tier:1, sets:3, reps:'8\u201312', rest:90,
+    {k:'cablerow',n:'Seated cable row', t:'work', tier:1, sets:4, reps:'8\u201312', rest:90,
       alts:[{k:'row_machine',n:'Machine row'},{k:'row_db',n:'DB row'},{k:'row',n:'Chest-supported row'}]},
     {k:'pullthrough',n:'Cable pull-through', t:'work', tier:2, sets:3, reps:'8\u201312', rest:60, cue:'hinge \u00b7 no spinal load',
       alts:[{k:'backext',n:'45\u00b0 back extension'},{k:'hipthrust',n:'Hip thrust'}]},
@@ -45,7 +45,7 @@ const PROGRAM = {
   w2: { label:'Workout 2', focus:'Vertical pull + incline', ex:[
     {k:'kneeext', n:'Seated knee extension', t:'work', tier:1, sets:3, reps:'8\u201312', rest:60, tempo:'2-0-2', cue:'knee prep \u00b7 ~2 in reserve',
       alts:[{k:'wallsq',n:'Heels-elevated wall squat'},{k:'legpress_slow',n:'Slow leg-press (knee-forward)'}]},
-    {k:'pullup',  n:'Weighted pull-up', t:'pullup', tier:1, sets:3, reps:'4\u20136', inc:5, added:true, rest:150,
+    {k:'pullup',  n:'Weighted pull-up', t:'pullup', tier:1, sets:4, reps:'4\u20136', inc:5, added:true, rest:150,
       alts:[{k:'pullup_neutral',n:'Neutral-grip pull-up'},{k:'chinup',n:'Weighted chin-up'},{k:'pulldown_wide',n:'Lat pulldown'}]},
     {k:'incline', n:'Smith machine incline', t:'top', tier:1, sets:4, reps:'4', rpe:8, inc:5, rest:180,
       alts:[{k:'incline_bb',n:'Barbell incline (w/ spotter)'},{k:'incline_db',n:'DB incline press'},{k:'incline_machine',n:'Machine incline press'}]},
@@ -53,7 +53,7 @@ const PROGRAM = {
       alts:[{k:'rdl_db',n:'DB RDL'},{k:'pullthrough',n:'Cable pull-through'}]},
     {k:'sumosq',  n:'DB sumo squat', t:'work', tier:2, sets:3, reps:'6\u201310', rest:90, rotate:true, cue:'adductors \u00b7 alternates w/ split squat',
       alts:[{k:'splitsq',n:'DB split squat'},{k:'bulgarian',n:'Bulgarian split squat'},{k:'reverselunge',n:'Reverse lunge'}]},
-    {k:'row_db',  n:'DB row', t:'work', tier:2, sets:3, reps:'8\u201312', rest:90,
+    {k:'row_db',  n:'DB row', t:'work', tier:2, sets:4, reps:'8\u201312', rest:90,
       alts:[{k:'cablerow',n:'Cable row'},{k:'row_machine',n:'Machine row'}]},
     {k:'halfkneelpress',n:'Half-kneeling DB press', t:'work', tier:2, sets:2, reps:'6\u201310 / side', rest:60, cue:'ribs down, glute on',
       alts:[{k:'ohp_db',n:'DB shoulder press'},{k:'ohp_landmine',n:'Landmine press'}]},
@@ -71,7 +71,7 @@ const PROGRAM = {
       alts:[{k:'gobletbox',n:'DB goblet box squat'},{k:'frontsq',n:'Front squat'},{k:'backsq',n:'Back squat'}]},
     {k:'ohp',     n:'Overhead press', t:'top', tier:1, sets:3, reps:'4', rpe:8, inc:5, rest:180,
       alts:[{k:'ohp_db',n:'DB shoulder press'},{k:'ohp_machine',n:'Machine shoulder press'}]},
-    {k:'row',     n:'Chest-supported row', t:'work', tier:1, sets:3, reps:'6\u201310', rest:90,
+    {k:'row',     n:'Chest-supported row', t:'work', tier:1, sets:4, reps:'6\u201310', rest:90,
       alts:[{k:'row_machine',n:'Machine row'},{k:'cablerow',n:'Cable row'},{k:'row_db',n:'DB row'}]},
     {k:'legcurl', n:'Lying leg curl', t:'work', tier:2, sets:3, reps:'8\u201312', rest:90, tempo:'2-1-2', cue:'controlled, build slowly',
       alts:[{k:'legcurl_seated',n:'Seated leg curl'},{k:'slider_curl',n:'Slider leg curl'}]},
@@ -259,10 +259,15 @@ const JOINTS = {
   pain:   { label:'Painful', note:'Painful \u00b7 pain-free ROM only today \u2014 flag it to Derek' },
 };
 const JOINT_ORDER = ['ok','niggle','sore','pain'];
-// where you trained. "Other" gyms have different machines/plates, so those
-// sessions log honestly but never anchor future suggestions.
-const GYMS = { home:{ label:'Usual' }, other:{ label:'Other gym' } };
-const GYM_ORDER = ['home','other'];
+// Where you trained. Machines and plate sets differ between gyms, so each
+// regular gym keeps its OWN progression history — suggestions come from your
+// last session at that gym. 'other' is a one-off (travel) and never anchors.
+const GYMS = { apt:{ label:'Apartment', tracked:true }, penn:{ label:'Penn', tracked:true }, other:{ label:'Other', tracked:false } };
+const GYM_ORDER = ['apt','penn','other'];
+// 'home' was the old two-option tag — treat it as the apartment so any session
+// logged before this change keeps anchoring normally.
+const normGym = g => (g === 'home' ? 'apt' : g);
+const gymTracked = g => { g = normGym(g); return !!(GYMS[g] && GYMS[g].tracked); };
 const TIMECAP = {
   full:  { label:'Full',    pri:3 },   // everything
   short: { label:'~40 min', pri:2 },   // tier 1 + 2
@@ -273,7 +278,7 @@ const TIME_ORDER = ['full','short','min'];
 function slotPriority(ex) { return (ex && ex.tier) ? ex.tier : 3; }
 
 // a session whose numbers were deliberately eased — never anchors future suggestions
-const isEasedSession = s => !!(s && (s.reduced || s.deload || s.gym === 'other' ||
+const isEasedSession = s => !!(s && (s.reduced || s.deload || (s.gym && !gymTracked(s.gym)) ||
   (s.readiness && READINESS[s.readiness] && !READINESS[s.readiness].prog)));
 
 function topHistory(k) {
@@ -284,15 +289,27 @@ function topHistory(k) {
   });
   return out.sort((a,b) => a.date === b.date ? ((a.id||0)-(b.id||0)) : (a.date < b.date ? -1 : 1));
 }
-// the session a suggestion should build on: most recent NON-reduced session logging k
-// (falls back to the most recent of any kind if every prior session was a reduced day).
-function anchorSession(k) {
-  const sess = Store.get().sessions
+// The session a suggestion should build on: most recent non-eased session logging k.
+// When a gym is given, prefer history from THAT gym (machines differ). If there's
+// none yet, fall back to your other gym so a first session still gets a number —
+// flagged with `fromOtherGym` so the UI can say where it came from.
+function anchorSession(k, gym) {
+  const all = Store.get().sessions
     .filter(s => s.exercises && s.exercises[k] && s.exercises[k].sets && s.exercises[k].sets[0] && s.exercises[k].sets[0].w)
     .sort((a,b) => a.date === b.date ? ((b.id||0)-(a.id||0)) : (a.date < b.date ? 1 : -1));
-  const s = sess.find(x => !isEasedSession(x)) || sess[0];
-  return s ? { date:s.date, bw:s.bodyweight, sets:s.exercises[k].sets } : null;
+  const usable = all.filter(x => !isEasedSession(x));
+  const pick = list => list[0] || null;
+  let s = null, fromOtherGym = false;
+  if (gym && gymTracked(gym)) {
+    s = pick(usable.filter(x => normGym(x.gym || 'apt') === normGym(gym)));
+    if (!s) { s = pick(usable); fromOtherGym = !!s; }   // no history here yet — borrow
+  } else {
+    s = pick(usable);
+  }
+  if (!s) s = pick(all);
+  return s ? { date:s.date, bw:s.bodyweight, sets:s.exercises[k].sets, gym:s.gym, fromOtherGym } : null;
 }
+
 function e1rmSeries(k) {
   return topHistory(k).map(e => {
     if (k === 'pullup' && +e.bw) return { date:e.date, v:e1rm((+e.bw)+(+e.w||0), e.r), basis:'total' };
@@ -310,9 +327,9 @@ function bestSet(k) {
   if (bi < 0) return null;
   return { w:h[bi].w, r:h[bi].r, v:bv, ago:h.length-1-bi, added:k==='pullup' };
 }
-function suggest(k, ex) {
+function suggest(k, ex, gym) {
   if (ex && ex.t === 'ath') return null;
-  const a = anchorSession(k);
+  const a = anchorSession(k, gym);
   if (!a) return null;
   const top = a.sets[0];
   const inc = ex.inc || 5;
@@ -322,8 +339,8 @@ function suggest(k, ex) {
   // timed holds (reps measured in seconds): chase more time, then add load past the range
   if (/\d\s*s/i.test(ex.reps || '')) {
     const secs = parseInt(('' + (top.r || '')).replace(/[^\d]/g, ''), 10) || 0;
-    if (+top.w && topRange && secs >= topRange) return { w: round5((+top.w) + 5), tag: '+5' };
-    return { w: +top.w || '', tag: 'time' };
+    if (+top.w && topRange && secs >= topRange) return { w: round5((+top.w) + 5), tag: '+5', borrowed: a.fromOtherGym };
+    return { w: +top.w || '', tag: 'time', borrowed: a.fromOtherGym };
   }
 
   if (ex.t === 'top' || ex.t === 'pullup') {
@@ -331,16 +348,16 @@ function suggest(k, ex) {
     const metReps = (+top.r) >= target;
     const okRpe = ex.rpe ? (top.rpe ? (+top.rpe) <= ex.rpe : true) : true;
     return (metReps && okRpe)
-      ? { w: round5((+top.w) + inc), base: +top.w || '', tag: '+' + inc }
-      : { w: +top.w || '', base: +top.w || '', tag: 'hold' };
+      ? { w: round5((+top.w) + inc), base: +top.w || '', tag: '+' + inc, borrowed: a.fromOtherGym }
+      : { w: +top.w || '', base: +top.w || '', tag: 'hold', borrowed: a.fromOtherGym };
   }
 
   // work lifts — double progression: add weight only when EVERY working set hit the top of the range
   const working = a.sets.filter(s => s.w !== '' || s.r !== '');
   const allTop = working.length > 0 && working.every(s => (+s.r) >= topRange);
   return allTop
-    ? { w: round5((+top.w || 0) + 5), base: +top.w || '', tag: '+5' }
-    : { w: +top.w || '', base: +top.w || '', tag: 'same' };
+    ? { w: round5((+top.w || 0) + 5), base: +top.w || '', tag: '+5', borrowed: a.fromOtherGym }
+    : { w: +top.w || '', base: +top.w || '', tag: 'same', borrowed: a.fromOtherGym };
 }
 // ---- reactive deload detection --------------------------------------------
 // Fires only when fatigue markers CLUSTER (>=2), never on a schedule. Evidence
