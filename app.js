@@ -7,6 +7,14 @@
 // which build a device is actually running (iOS caches HTML aggressively).
 const APP_VERSION = '2026.08.10-1';
 
+// Register the service worker (offline support + deterministic cache updates).
+// Fails silently on unsupported/insecure contexts — the app works either way.
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {});
+  });
+}
+
 const PROGRAM = {
   w1: { label:'Workout 1', ex:[
     {k:'wallsq',  n:'Heels-elevated wall squat', t:'work', sets:3, reps:'8–12', tempo:'2-0-2', cue:'~2 in reserve',
@@ -163,16 +171,20 @@ const Store = (() => {
     try { localStorage.setItem(KEY, JSON.stringify(s)); localStorage.setItem(TS, ts || new Date().toISOString()); } catch (e) {} };
   const localTs = () => { try { return localStorage.getItem(TS) || ''; } catch (e) { return ''; } };
 
-  let pushTimer = null;
+  let pushTimer = null, pending = false;
   async function push() {
     if (!Cloud.ready()) return; const uid = Cloud.uid(); if (!uid) return;
-    try { await Cloud.sb.from('app_state').upsert({ user_id: uid, data: readLocal(), updated_at: localTs() || new Date().toISOString() }); } catch (e) {}
+    try {
+      await Cloud.sb.from('app_state').upsert({ user_id: uid, data: readLocal(), updated_at: localTs() || new Date().toISOString() });
+      pending = false;
+    } catch (e) { pending = true; }   // offline: keep it flagged and retry on reconnect
   }
 
   return {
     def,
     get() { return readLocal(); },
-    set(s) { writeLocal(s, new Date().toISOString()); clearTimeout(pushTimer); pushTimer = setTimeout(push, 600); },
+    pending() { return pending; },
+    set(s) { pending = true; writeLocal(s, new Date().toISOString()); clearTimeout(pushTimer); pushTimer = setTimeout(push, 600); },
     update(fn) { const s = readLocal(); fn(s); this.set(s); return s; },
     flush() { clearTimeout(pushTimer); return push(); },
     async pull() {
@@ -189,19 +201,45 @@ const Store = (() => {
   };
 })();
 if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) Store.flush(); });
+// back online → push anything logged while offline
+if (typeof window !== 'undefined') window.addEventListener('online', () => { Store.flush(); netBadge(); });
+if (typeof window !== 'undefined') window.addEventListener('offline', () => netBadge());
+
+// small persistent indicator so you always know whether work is saved to the cloud yet
+function netBadge() {
+  if (typeof document === 'undefined' || !document.body) return;
+  let el = document.getElementById('netbadge');
+  const off = !navigator.onLine;
+  if (!off && !Store.pending()) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'netbadge'; el.className = 'netbadge'; document.body.appendChild(el); }
+  el.textContent = off ? 'Offline \u00b7 saved on this device' : 'Syncing\u2026';
+  el.classList.toggle('warn', off);
+}
 
 const Auth = {
   async logout() { await Cloud.signOut(); Store.clearLocal(); location.href = 'login.html'; },
 };
 
 // gate + sync, then render the page. Falls back to local-only if Supabase isn't configured yet.
+const SEEN_KEY = 'pentathlon_signed_in';
+const hasSignedInBefore = () => { try { return localStorage.getItem(SEEN_KEY) === '1'; } catch (e) { return false; } };
 async function boot(render) {
   Cloud.init();
-  if (!Cloud.ready()) { render(); return; }
-  const session = await Cloud.session();
-  if (!session) { location.replace('login.html'); return; }
+  if (!Cloud.ready()) { render(); netBadge(); return; }
+  let session = null;
+  try { session = await Cloud.session(); } catch (e) { session = null; }
+  if (!session) {
+    // Offline in a gym: don't bounce to a login page that can't reach the network.
+    // If this device has signed in before, run local-only — everything still logs
+    // to localStorage and pushes when signal returns.
+    if (!navigator.onLine && hasSignedInBefore()) { render(); netBadge(); return; }
+    location.replace('login.html'); return;
+  }
+  try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {}
   await Store.pull();
   render();
+  netBadge();
+  setInterval(netBadge, 4000);
 }
 
 // ---- helpers ----
