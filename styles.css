@@ -88,14 +88,23 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 .weighed b{color:var(--text);font-family:var(--mono)}
 .weighed button{flex:0 0 auto;font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:700}
 .bw-unit{font-family:var(--mono);font-size:12px;color:var(--faint);flex:0 0 auto}
-.checkin{background:var(--surface);border-bottom:1px solid var(--line);padding:10px 16px 12px;display:flex;flex-direction:column;gap:8px}
-.ci-row{display:flex;align-items:center;gap:10px}
-.ci-q{font-size:12.5px;color:var(--muted);font-weight:600;flex:0 0 92px}
-.ci-note{font-family:var(--mono);font-size:10.5px;color:var(--faint);line-height:1.5}
+/* pre-workout check-in — a sheet on open, then a one-line recap */
+.ci-title{font-size:17px;font-weight:700;letter-spacing:-.01em;margin-bottom:2px}
+.ck{display:flex;flex-direction:column;gap:6px}
+.ci-q{font-size:12.5px;color:var(--muted);font-weight:600}
+.ci-note{font-family:var(--mono);font-size:10.5px;color:var(--faint);line-height:1.5;min-height:14px}
 .ci-note.warn{color:var(--red)}
-.seg{display:inline-flex;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:2px;gap:2px;flex:1}
-.seg button{flex:1;font-size:12px;font-weight:700;color:var(--muted);padding:7px 6px;border-radius:8px;white-space:nowrap}
-.seg button.on{background:var(--surface);color:var(--accent);box-shadow:var(--shadow)}
+.cisummary{display:flex;align-items:center;gap:10px;width:calc(100% - 28px);margin:10px 14px 0;
+  padding:9px 13px;border-radius:11px;background:var(--surface);border:1px solid var(--line);
+  box-shadow:var(--shadow);font-size:12.5px;color:var(--muted);font-weight:600;text-align:left}
+.cisummary span{flex:1;min-width:0}
+.cisummary em{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--accent);font-weight:700}
+.cisummary.flag{background:#FFF7ED;border-color:#FED7AA;color:#9A5B12}
+/* check-in toggle. NB: .seg is taken by the interval-segment card below — this
+   must keep its own name or that rule's flex-direction:column stacks it. */
+.ckseg{display:flex;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;width:100%}
+.ckseg button{flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--muted);padding:10px 6px;border-radius:8px;white-space:nowrap}
+.ckseg button.on{background:var(--surface);color:var(--accent);box-shadow:var(--shadow)}
 .dbanner{display:flex;align-items:center;gap:12px;margin:10px 14px 0;padding:12px 14px;border-radius:13px;
   background:#FFF7ED;border:1px solid #FED7AA}
 .dbanner.on{background:var(--accent-soft);border-color:var(--accent)}

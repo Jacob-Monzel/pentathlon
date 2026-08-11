@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.10-5';
+const APP_VERSION = '2026.08.10-6';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.

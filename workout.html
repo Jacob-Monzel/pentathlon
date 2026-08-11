@@ -27,11 +27,17 @@
   <div class="wclock" id="wclock">0:00</div>
 </div>
 <div id="deloadBanner"></div>
-<div class="checkin" id="checkin">
-  <div class="ci-row"><span class="ci-q">How do you feel?</span><div class="seg" id="segReady"></div></div>
-  <div class="ci-row"><span class="ci-q">Knee / groin</span><div class="seg" id="segJoint"></div></div>
-  <div class="ci-row"><span class="ci-q">Time today</span><div class="seg" id="segTime"></div></div>
-  <div class="ci-note" id="ciNote"></div>
+<button class="cisummary" id="ciSummary" hidden></button>
+
+<div class="sheet" id="ciSheet">
+  <div class="sheet-in">
+    <div class="ci-title">Before you start</div>
+    <div class="ck"><span class="ci-q">How do you feel?</span><div class="ckseg" id="segReady"></div></div>
+    <div class="ck"><span class="ci-q">Knee / groin</span><div class="ckseg" id="segJoint"></div></div>
+    <div class="ck"><span class="ci-q">Time today</span><div class="ckseg" id="segTime"></div></div>
+    <div class="ci-note" id="ciNote"></div>
+    <button class="primary" id="ciGo">Start workout</button>
+  </div>
 </div>
 <div class="wlist" id="wlist"></div>
 <button class="finishbtn" id="finish">Finish &amp; feedback</button>
@@ -56,7 +62,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=202608110033"></script>
+<script src="app.js?v=202608110041"></script>
 <script>
   boot(async () => {
   const params = new URLSearchParams(location.search);
@@ -179,13 +185,34 @@
     seg(segJoint, JOINT_ORDER, JOINTS, draft.joints, v => { draft.joints = v; save(); renderCheckin(); render(); });
     seg(segTime, TIME_ORDER, TIMECAP, draft.timecap, v => { draft.timecap = v; applyPlan(); save(); renderCheckin(); render(); });
     const bits = [];
-    if (!tier().prog) bits.push(`targets eased \u00b7 won\u2019t affect tracking`);
+    if (!tier().prog) bits.push('targets eased \u00b7 won\u2019t affect tracking');
     if (draft.deload) bits.push('deload \u00b7 sets cut, stop 2+ reps shy');
     if (JOINTS[draft.joints].note) bits.push(JOINTS[draft.joints].note);
     if (draft.timecap !== 'full') bits.push('extras marked optional');
     ciNote.innerHTML = bits.length ? bits.join(' \u00b7 ') : '';
     ciNote.className = 'ci-note' + (draft.joints === 'pain' ? ' warn' : '');
+    renderSummary();
   }
+  // one-line recap once answered; tap to change mid-workout
+  function renderSummary() {
+    if (!draft.checkedIn) { ciSummary.hidden = true; return; }
+    const bits = [READINESS[draft.readiness].label];
+    if (draft.joints !== 'ok') bits.push(JOINTS[draft.joints].label.toLowerCase());
+    if (draft.timecap !== 'full') bits.push(TIMECAP[draft.timecap].label);
+    if (draft.deload) bits.push('deload');
+    ciSummary.hidden = false;
+    ciSummary.className = 'cisummary' + (draft.joints === 'pain' || !tier().prog || draft.deload ? ' flag' : '');
+    ciSummary.innerHTML = `<span>${bits.join(' \u00b7 ')}</span><em>change</em>`;
+  }
+  const openCheckin = () => { ciSheet.classList.add('on'); renderCheckin(); };
+  const closeCheckin = () => { ciSheet.classList.remove('on'); draft.checkedIn = true; save(); renderSummary(); };
+  ciGo.onclick = closeCheckin;
+  ciSummary.onclick = openCheckin;
+  // tapping the backdrop dismisses too — defaults are sensible, and you must be
+  // able to back out of a workout you only opened to look at
+  ciSheet.onclick = e => { if (e.target === ciSheet) closeCheckin(); };
+  // ask once per workout; dismissing counts as answered (defaults are sensible)
+  if (!draft.checkedIn) openCheckin(); else renderCheckin();
 
   // ---------- reactive deload: offered only when fatigue markers cluster ----------
   function renderDeload() {
@@ -388,7 +415,6 @@
     backToDay();
   };
 
-  renderCheckin();
   renderDeload();
   render();
   });
