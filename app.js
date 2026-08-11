@@ -3,6 +3,10 @@
 //  Scheme-A progression is baked in; never surfaced.
 // ============================================================
 
+// Bump on every app.js change; shown on the Backup page so you can confirm
+// which build a device is actually running (iOS caches HTML aggressively).
+const APP_VERSION = '2026.08.10-1';
+
 const PROGRAM = {
   w1: { label:'Workout 1', ex:[
     {k:'wallsq',  n:'Heels-elevated wall squat', t:'work', sets:3, reps:'8–12', tempo:'2-0-2', cue:'~2 in reserve',

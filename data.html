@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -27,12 +30,25 @@
   <button id="imp" class="ghostbtn">Import from file</button>
   <input type="file" id="impFile" accept="application/json" hidden>
   <button id="wipe" class="dangerbtn">Erase everything</button>
+  <div class="verbox">
+    <div class="verline">Version <b id="verNum">—</b></div>
+    <button class="ghostbtn" id="forceReload">Force reload latest version</button>
+    <div class="verhint">Use this if a device is showing an old build \u2014 it re-fetches past the cache.</div>
+  </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="app.js?v=202608102357"></script>
 <script>
   boot(async () => {
+
+  // which build is this device actually running?
+  verNum.textContent = (typeof APP_VERSION !== 'undefined') ? APP_VERSION : 'old build (pre-versioning)';
+  // reload past the cache: a fresh query string forces a re-fetch of the HTML itself,
+  // which is what iOS holds onto hardest in standalone mode.
+  forceReload.onclick = () => {
+    location.href = location.pathname.replace(/data\.html$/, 'index.html') + '?r=' + Date.now();
+  };
 
   exp.onclick = () => {
     const blob = new Blob([JSON.stringify(Store.get(), null, 2)], { type: 'application/json' });
