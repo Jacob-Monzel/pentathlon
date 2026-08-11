@@ -35,6 +35,7 @@
     <div class="ck"><span class="ci-q">How do you feel?</span><div class="ckseg" id="segReady"></div></div>
     <div class="ck"><span class="ci-q">Knee / groin</span><div class="ckseg" id="segJoint"></div></div>
     <div class="ck"><span class="ci-q">Time today</span><div class="ckseg" id="segTime"></div></div>
+    <div class="ck"><span class="ci-q">Gym</span><div class="ckseg" id="segGym"></div></div>
     <div class="ci-note" id="ciNote"></div>
     <button class="primary" id="ciGo">Start workout</button>
   </div>
@@ -62,7 +63,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=202608110052"></script>
+<script src="app.js?v=202608110144"></script>
 <script>
   boot(async () => {
   const params = new URLSearchParams(location.search);
@@ -81,7 +82,7 @@
   const applySticky = getDraftKey => slots.forEach(slot => {
     const opts = slotOpts(slot);
     let hit = getDraftKey ? opts.find(o => getDraftKey(o.k)) : null;
-    if (!hit) { const k = lastSlotChoice(day, slot.baseK, slot.alts); if (k) hit = opts.find(o => o.k === k); }
+    if (!hit) { const k = lastSlotChoice(day, slot.baseK, slot.alts, slot.rotate); if (k) hit = opts.find(o => o.k === k); }
     if (hit && hit.k !== slot.k) { slot.k = hit.k; slot.n = hit.n; }
   });
 
@@ -125,6 +126,7 @@
   if (!draft.readiness) draft.readiness = 'normal';
   if (!draft.joints) draft.joints = 'ok';
   if (!draft.timecap) draft.timecap = 'full';
+  if (!draft.gym) draft.gym = 'home';
   const tier = () => READINESS[draft.readiness] || READINESS.normal;
   // effective target for a slot: pause progression when not fresh, scale by tier, ease again on a deload
   const targetW = sg => {
@@ -184,11 +186,13 @@
     seg(segReady, READY_ORDER, READINESS, draft.readiness, v => { draft.readiness = v; applyPlan(); save(); renderCheckin(); render(); });
     seg(segJoint, JOINT_ORDER, JOINTS, draft.joints, v => { draft.joints = v; save(); renderCheckin(); render(); });
     seg(segTime, TIME_ORDER, TIMECAP, draft.timecap, v => { draft.timecap = v; applyPlan(); save(); renderCheckin(); render(); });
+    seg(segGym, GYM_ORDER, GYMS, draft.gym, v => { draft.gym = v; save(); renderCheckin(); render(); });
     const bits = [];
     if (!tier().prog) bits.push('targets eased \u00b7 won\u2019t affect tracking');
     if (draft.deload) bits.push('deload \u00b7 sets cut, stop 2+ reps shy');
     if (JOINTS[draft.joints].note) bits.push(JOINTS[draft.joints].note);
     if (draft.timecap !== 'full') bits.push('extras marked optional');
+    if (draft.gym === 'other') bits.push('other gym \u00b7 won\u2019t affect your usual numbers');
     ciNote.innerHTML = bits.length ? bits.join(' \u00b7 ') : '';
     ciNote.className = 'ci-note' + (draft.joints === 'pain' ? ' warn' : '');
     renderSummary();
@@ -200,6 +204,7 @@
     if (draft.joints !== 'ok') bits.push(JOINTS[draft.joints].label.toLowerCase());
     if (draft.timecap !== 'full') bits.push(TIMECAP[draft.timecap].label);
     if (draft.deload) bits.push('deload');
+    if (draft.gym === 'other') bits.push('other gym');
     ciSummary.hidden = false;
     ciSummary.className = 'cisummary' + (draft.joints === 'pain' || !tier().prog || draft.deload ? ' flag' : '');
     ciSummary.innerHTML = `<span>${bits.join(' \u00b7 ')}</span><em>change</em>`;
@@ -227,8 +232,10 @@
     dOn.onclick = () => { draft.deload = true; applyPlan(); save(); renderDeload(); renderCheckin(); render(); };
   }
 
+  let t3open = false;
   function render() {
     wlist.innerHTML = '';
+    let lastTier = 0;
     slots.forEach((slot, idx) => {
       const st = exState(slot.k);
       const sg = st.sugg;
@@ -261,6 +268,18 @@
       const opts = slotOpts(slot).filter(o => o.k !== slot.k);
       const swapMenu = `<div class="swapmenu" id="sm-${idx}" hidden>` +
         opts.map(o => `<button data-idx="${idx}" data-k="${o.k}" data-n="${o.n}">${o.k===slot.baseK?'★ ':''}${o.n}</button>`).join('') + `</div>`;
+      // tier heading before the first exercise of each tier
+      const tier = slotPriority(slot);
+      if (tier !== lastTier) {
+        const h = document.createElement('div');
+        h.className = 'tierhead' + (tier === 3 ? ' t3' : '');
+        const names = {1:'Core \u00b7 always', 2:'Support', 3:'Extras \u00b7 superset these'};
+        h.innerHTML = `<span>${names[tier]}</span>` +
+          (tier === 3 ? `<button class="t3toggle" id="t3btn">${t3open ? 'hide' : 'show'}</button>` : '');
+        wlist.appendChild(h);
+        lastTier = tier;
+      }
+      if (tier === 3 && !t3open) return;   // collapsed by default — keeps the list short
       const card = document.createElement('div');
       card.className = 'exc' + (optional ? ' optional' : '');
       card.innerHTML =
@@ -276,6 +295,8 @@
          <div class="exfoot"><button class="addset" data-k="${slot.k}">+ set</button><button class="rmset" data-k="${slot.k}">− set</button>${(slot.t==='top'||slot.t==='pullup')?`<span class="boff" id="boff-${slot.k}"></span>`:''}</div>`;
       wlist.appendChild(card);
     });
+    const t3b = document.getElementById('t3btn');
+    if (t3b) t3b.onclick = () => { t3open = !t3open; render(); };
     wire();
     slots.forEach(s => { if (s.t === 'top') refillBackoff(s.k); else if (s.t === 'pullup') pullupHint(s.k); });
   }
@@ -355,13 +376,15 @@
   function startRest(sec = 90) { draft.restEnd = Date.now() + sec * 1000; save(); tickRest(); }
   rest.onclick = () => { draft.restEnd = null; save(); renderRest(); };
 
-  // rest length by exercise type: heavy top/pullup sets need long rest; timed holds short.
+  // rest comes from the program now; fall back to type-based defaults
   function restSecFor(slot) {
     if (!slot) return 90;
+    if (slot.rest) return slot.rest;
     if (slot.t === 'top' || slot.t === 'pullup') return 180;
-    if (/\d\s*s/i.test(slot.reps || '')) return 60;   // seconds-based holds
+    if (/\d\s*s/i.test(slot.reps || '')) return 60;
     return 90;
   }
+
   // flag a completed set as a PR when its est-1RM beats everything logged before today.
   function flagPR(k, set, row) {
     const slot = curSlot(k); if (!slot) return;
@@ -408,7 +431,7 @@
     });
     const note = fbNote.value.trim();
     Store.update(s => {
-      s.sessions.push({ id: Date.now(), day, date: logDate, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, readiness: draft.readiness || 'normal', joints: draft.joints || 'ok', ...(srpeVal ? { srpe: srpeVal } : {}), ...(durMin.value ? { minutes: +durMin.value } : {}), ...(draft.deload ? { deload: true } : {}) });
+      s.sessions.push({ id: Date.now(), day, date: logDate, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, readiness: draft.readiness || 'normal', joints: draft.joints || 'ok', gym: draft.gym || 'home', ...(srpeVal ? { srpe: srpeVal } : {}), ...(durMin.value ? { minutes: +durMin.value } : {}), ...(draft.deload ? { deload: true } : {}) });
       if (flareVal && flareVal !== 'None') s.episodes.push({ id: Date.now(), date: logDate, what: flareVal, ctx: note || 'post-workout' });
       s.draft = null;
     });

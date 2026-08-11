@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.10-7';
+const APP_VERSION = '2026.08.11-1';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -16,75 +16,79 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
 }
 
 const PROGRAM = {
-  w1: { label:'Workout 1', ex:[
-    {k:'wallsq',  n:'Heels-elevated wall squat', t:'work', sets:3, reps:'8–12', tempo:'2-0-2', cue:'~2 in reserve',
-      alts:[{k:'kneeext',n:'Seated knee extension'}]},
-    {k:'bench',   n:'Smith machine bench', t:'top', sets:4, reps:'4', rpe:8, inc:5,
+  // tier 1 = always (main lifts + knee rehab) · 2 = support · 3 = extras (superset these)
+  // rest is per-exercise seconds; heavy work gets long rests, accessories short.
+  w1: { label:'Workout 1', focus:'Bench + horizontal pull', ex:[
+    {k:'wallsq',  n:'Heels-elevated wall squat', t:'work', tier:1, sets:3, reps:'8\u201312', rest:60, tempo:'2-0-2', cue:'knee prep \u00b7 ~2 in reserve',
+      alts:[{k:'kneeext',n:'Seated knee extension'},{k:'legpress_slow',n:'Slow leg-press (knee-forward)'}]},
+    {k:'bench',   n:'Smith machine bench', t:'top', tier:1, sets:4, reps:'4', rpe:8, inc:5, rest:180,
       alts:[{k:'bench_bb',n:'Barbell bench (w/ spotter)'},{k:'bench_db',n:'DB bench press'},{k:'chestpress',n:'Machine chest press'}]},
-    {k:'legpress',n:'Leg press', t:'work', sets:3, reps:'5–8', rpe:7,
+    {k:'legpress',n:'Leg press', t:'work', tier:1, sets:3, reps:'5\u20138', rpe:7, rest:90,
       alts:[{k:'hacksquat',n:'Hack squat'},{k:'gobletsq',n:'Goblet squat'}]},
-    {k:'backext', n:'45° back extension', t:'work', sets:3, reps:'6–10',
-      alts:[{k:'gm_bb',n:'Barbell good morning'}]},
-    {k:'pmtap',   n:'Posterior medial tap', t:'work', sets:3, reps:'8–12 / side', cue:'chase range',
-      alts:[{k:'stepdown',n:'Lateral step-down'},{k:'slrdl',n:'Single-leg RDL'}]},
-    {k:'pulldown',n:'Single-arm lat pulldown', t:'work', sets:3, reps:'8–12 / side',
-      alts:[{k:'pulldown_neutral',n:'Neutral-grip pulldown'},{k:'pullover',n:'Cable pullover'}]},
-    {k:'row_db',  n:'DB row', t:'work', sets:3, reps:'8–12',
-      alts:[{k:'cablerow',n:'Cable row'},{k:'row_machine',n:'Machine row'}]},
-    {k:'pallof',  n:'Pallof press', t:'work', sets:3, reps:'8–12 / side', cue:'resist the twist',
-      alts:[{k:'pallof_kneel',n:'Half-kneeling Pallof'},{k:'deadbug',n:'Dead bug'},{k:'rollout',n:'Ab rollout'}]},
-    {k:'dbcurl',  n:'DB curl', t:'work', sets:3, reps:'8–12',
+    {k:'cablerow',n:'Seated cable row', t:'work', tier:1, sets:3, reps:'8\u201312', rest:90,
+      alts:[{k:'row_machine',n:'Machine row'},{k:'row_db',n:'DB row'},{k:'row',n:'Chest-supported row'}]},
+    {k:'pullthrough',n:'Cable pull-through', t:'work', tier:2, sets:3, reps:'8\u201312', rest:60, cue:'hinge \u00b7 no spinal load',
+      alts:[{k:'backext',n:'45\u00b0 back extension'},{k:'hipthrust',n:'Hip thrust'}]},
+    {k:'pallof',  n:'Pallof press', t:'work', tier:2, sets:3, reps:'8\u201312 / side', rest:60, cue:'resist the twist',
+      alts:[{k:'pallof_kneel',n:'Half-kneeling Pallof'},{k:'chop',n:'Cable chop'},{k:'deadbug',n:'Dead bug'}]},
+    {k:'pmtap',   n:'Posterior medial tap', t:'work', tier:2, sets:2, reps:'8\u201312 / side', rest:60, rotate:true, cue:'alternates weekly w/ SL RDL',
+      alts:[{k:'slrdl',n:'Single-leg RDL'},{k:'stepdown',n:'Lateral step-down'}]},
+    {k:'carry',   n:'Suitcase carry', t:'work', tier:2, sets:3, reps:'30\u201360s / side', rest:60, cue:'one hand \u00b7 ribs down, don\u2019t lean',
+      alts:[{k:'farmerhold',n:'Farmer hold (two hands)'},{k:'towelhang',n:'Towel hang'}]},
+    {k:'facepull',n:'Face pull', t:'work', tier:3, sets:2, reps:'12\u201320', rest:45,
+      alts:[{k:'reardelt',n:'Rear-delt fly'},{k:'bandpull',n:'Band pull-apart'}]},
+    {k:'dbcurl',  n:'DB curl', t:'work', tier:3, sets:2, reps:'8\u201312', rest:45,
       alts:[{k:'curl_bb',n:'Barbell curl'},{k:'curl_cable',n:'Cable curl'},{k:'curl_hammer',n:'Hammer curl'}]},
-    {k:'facepull',n:'Face pull', t:'work', sets:3, reps:'12–20',
-      alts:[{k:'reardelt',n:'Rear-delt fly'}]},
-    {k:'calf_stand',n:'Standing calf raise', t:'work', sets:3, reps:'8–12', tempo:'2-1-2', cue:'gastroc',
-      alts:[{k:'calf_legpress',n:'Leg-press calf raise'}]},
-    {k:'pinchhold',n:'DB head pinch hold', t:'work', sets:3, reps:'20–40s / hand', cue:'fingers on the round head',
-      alts:[{k:'platepinch',n:'Plate pinch'},{k:'farmerhold',n:'Heavy farmer hold'}]},
+    {k:'calf_legpress',n:'Leg-press calf raise', t:'work', tier:3, sets:3, reps:'8\u201312', rest:45, tempo:'2-1-2', cue:'straight leg \u00b7 gastroc',
+      alts:[{k:'calf_stand',n:'Standing calf raise'},{k:'calf_single',n:'Single-leg calf raise'}]},
   ]},
-  w2: { label:'Workout 2', ex:[
-    {k:'kneeext', n:'Seated knee extension', t:'work', sets:3, reps:'8–12', tempo:'2-0-2', cue:'~2 in reserve',
+  w2: { label:'Workout 2', focus:'Vertical pull + incline', ex:[
+    {k:'kneeext', n:'Seated knee extension', t:'work', tier:1, sets:3, reps:'8\u201312', rest:60, tempo:'2-0-2', cue:'knee prep \u00b7 ~2 in reserve',
       alts:[{k:'wallsq',n:'Heels-elevated wall squat'},{k:'legpress_slow',n:'Slow leg-press (knee-forward)'}]},
-    {k:'rdl',     n:'Romanian deadlift', t:'work', sets:3, reps:'5–8', rpe:7,
-      alts:[{k:'rdl_db',n:'DB RDL'},{k:'backext',n:'45° back extension'}]},
-    {k:'incline', n:'Smith machine incline', t:'top', sets:4, reps:'4', rpe:8, inc:5,
-      alts:[{k:'incline_bb',n:'Barbell incline (w/ spotter)'},{k:'incline_db',n:'DB incline press'},{k:'incline_machine',n:'Machine incline press'}]},
-    {k:'splitsq', n:'DB split squat', t:'work', sets:3, reps:'6–10 / side', cue:'alternate w/ sumo (swap)',
-      alts:[{k:'sumosq',n:'DB sumo squat'},{k:'cossack',n:'Cossack squat'},{k:'bulgarian',n:'Bulgarian split squat'},{k:'reverselunge',n:'Reverse lunge'}]},
-    {k:'pullup',  n:'Weighted pull-up', t:'pullup', sets:3, reps:'4–6', inc:5, added:true,
+    {k:'pullup',  n:'Weighted pull-up', t:'pullup', tier:1, sets:3, reps:'4\u20136', inc:5, added:true, rest:150,
       alts:[{k:'pullup_neutral',n:'Neutral-grip pull-up'},{k:'chinup',n:'Weighted chin-up'},{k:'pulldown_wide',n:'Lat pulldown'}]},
-    {k:'cablerow', n:'Cable row', t:'work', sets:3, reps:'8–12',
-      alts:[{k:'row_db',n:'DB row'}]},
-    {k:'armbar',  n:'DB armbar', t:'work', sets:3, reps:'6–10 / side', cue:'control',
-      alts:[{k:'windmill',n:'KB windmill'},{k:'halfkneelpress',n:'Half-kneeling press'}]},
-    {k:'latraise',n:'Lateral raise', t:'work', sets:2, reps:'12–20',
+    {k:'incline', n:'Smith machine incline', t:'top', tier:1, sets:4, reps:'4', rpe:8, inc:5, rest:180,
+      alts:[{k:'incline_bb',n:'Barbell incline (w/ spotter)'},{k:'incline_db',n:'DB incline press'},{k:'incline_machine',n:'Machine incline press'}]},
+    {k:'rdl',     n:'Romanian deadlift', t:'work', tier:1, sets:3, reps:'5\u20138', rpe:7, rest:90, cue:'strict \u00b7 stop at the stretch',
+      alts:[{k:'rdl_db',n:'DB RDL'},{k:'pullthrough',n:'Cable pull-through'}]},
+    {k:'sumosq',  n:'DB sumo squat', t:'work', tier:2, sets:3, reps:'6\u201310', rest:90, rotate:true, cue:'adductors \u00b7 alternates w/ split squat',
+      alts:[{k:'splitsq',n:'DB split squat'},{k:'bulgarian',n:'Bulgarian split squat'},{k:'reverselunge',n:'Reverse lunge'}]},
+    {k:'row_db',  n:'DB row', t:'work', tier:2, sets:3, reps:'8\u201312', rest:90,
+      alts:[{k:'cablerow',n:'Cable row'},{k:'row_machine',n:'Machine row'}]},
+    {k:'halfkneelpress',n:'Half-kneeling DB press', t:'work', tier:2, sets:2, reps:'6\u201310 / side', rest:60, cue:'ribs down, glute on',
+      alts:[{k:'ohp_db',n:'DB shoulder press'},{k:'ohp_landmine',n:'Landmine press'}]},
+    {k:'latraise',n:'Lateral raise', t:'work', tier:3, sets:3, reps:'12\u201320', rest:45,
       alts:[{k:'latraise_cable',n:'Cable lateral raise'},{k:'latraise_machine',n:'Machine lateral raise'}]},
-    {k:'dbcurl',  n:'DB curl', t:'work', sets:2, reps:'8–12',
+    {k:'rollout', n:'Ab rollout', t:'work', tier:3, sets:2, reps:'8\u201312', rest:45, cue:'anti-extension \u00b7 ribs tucked',
+      alts:[{k:'deadbug',n:'Dead bug'},{k:'plank_ext',n:'Long-lever plank'}]},
+    {k:'dbcurl',  n:'DB curl', t:'work', tier:3, sets:2, reps:'8\u201312', rest:45,
       alts:[{k:'curl_bb',n:'Barbell curl'},{k:'curl_cable',n:'Cable curl'},{k:'curl_hammer',n:'Hammer curl'}]},
   ]},
-  w3: { label:'Workout 3', ex:[
-    {k:'kneeext', n:'Seated knee extension', t:'work', sets:3, reps:'8–12', tempo:'2-0-2', cue:'~2 in reserve',
+  w3: { label:'Workout 3', focus:'Squat + overhead', ex:[
+    {k:'kneeext', n:'Seated knee extension', t:'work', tier:1, sets:3, reps:'8\u201312', rest:60, tempo:'2-0-2', cue:'knee prep FIRST \u00b7 keep it light',
       alts:[{k:'wallsq',n:'Heels-elevated wall squat'},{k:'legpress_slow',n:'Slow leg-press (knee-forward)'}]},
-    {k:'boxsq',   n:'Box squat', t:'work', sets:4, reps:'5', rpe:8, tempo:'3-0-3',
+    {k:'boxsq',   n:'Box squat', t:'work', tier:1, sets:3, reps:'5', rpe:8, tempo:'3-0-3', rest:150,
       alts:[{k:'gobletbox',n:'DB goblet box squat'},{k:'frontsq',n:'Front squat'},{k:'backsq',n:'Back squat'}]},
-    {k:'ohp',     n:'Overhead press', t:'top', sets:4, reps:'4', rpe:8, inc:5,
+    {k:'ohp',     n:'Overhead press', t:'top', tier:1, sets:3, reps:'4', rpe:8, inc:5, rest:180,
       alts:[{k:'ohp_db',n:'DB shoulder press'},{k:'ohp_machine',n:'Machine shoulder press'}]},
-    {k:'row',     n:'Chest-supported row', t:'work', sets:3, reps:'6–10',
-      alts:[{k:'row_db',n:'DB row'},{k:'cablerow',n:'Cable row'},{k:'row_machine',n:'Machine row'}]},
-    {k:'legcurl', n:'Lying leg curl', t:'work', sets:3, reps:'8–12', tempo:'2-1-2', cue:'controlled, build slowly',
-      alts:[{k:'legcurl_seated',n:'Seated leg curl'},{k:'nordic',n:'Nordic curl (eccentric)'}]},
-    {k:'latlunge',n:'Lateral lunge', t:'work', sets:3, reps:'8–12 / side', cue:'chase range',
-      alts:[{k:'cossack',n:'Cossack squat'},{k:'lateralstepup',n:'Lateral step-up'}]},
-    {k:'windmill',n:'KB windmill', t:'work', sets:3, reps:'6–10 / side', cue:'control',
-      alts:[{k:'armbar',n:'DB armbar'},{k:'halo',n:'Half-kneeling halo'}]},
-    {k:'pushdown',n:'Cable pushdown', t:'work', sets:3, reps:'8–15',
-      alts:[{k:'tri_oh',n:'Overhead extension'},{k:'skullcrusher',n:'Skull crusher'},{k:'dips',n:'Dips'}]},
-    {k:'latraise',n:'Lateral raise', t:'work', sets:3, reps:'12–20',
-      alts:[{k:'latraise_cable',n:'Cable lateral raise'},{k:'latraise_machine',n:'Machine lateral raise'}]},
-    {k:'calf_seated',n:'Seated calf raise', t:'work', sets:3, reps:'10–15', cue:'soleus',
-      alts:[{k:'calf_legpress',n:'Leg-press calf raise'},{k:'calf_stand',n:'Standing calf raise'}]},
-    {k:'deadhang',n:'Weighted dead hang', t:'work', sets:3, reps:'30–90s', cue:'weight = added lbs · past 90s? add 5',
+    {k:'row',     n:'Chest-supported row', t:'work', tier:1, sets:3, reps:'6\u201310', rest:90,
+      alts:[{k:'row_machine',n:'Machine row'},{k:'cablerow',n:'Cable row'},{k:'row_db',n:'DB row'}]},
+    {k:'legcurl', n:'Lying leg curl', t:'work', tier:2, sets:3, reps:'8\u201312', rest:90, tempo:'2-1-2', cue:'controlled, build slowly',
+      alts:[{k:'legcurl_seated',n:'Seated leg curl'},{k:'slider_curl',n:'Slider leg curl'}]},
+    {k:'cossack', n:'Cossack squat', t:'work', tier:2, sets:2, reps:'8\u201312 / side', rest:60, cue:'chase range',
+      alts:[{k:'latlunge',n:'Lateral lunge'},{k:'lateralstepup',n:'Lateral step-up'}]},
+    {k:'copenhagen',n:'Copenhagen plank', t:'work', tier:2, sets:2, reps:'20\u201340s / side', rest:60, cue:'adductor \u00b7 start bent-knee',
+      alts:[{k:'adductor_machine',n:'Adductor machine'},{k:'ballsqueeze',n:'Ball squeeze'}]},
+    {k:'calf_seated',n:'Seated calf raise', t:'work', tier:2, sets:3, reps:'10\u201315', rest:60, cue:'bent knee \u00b7 soleus',
+      alts:[{k:'calf_db_seated',n:'DB seated calf raise'},{k:'calf_legpress',n:'Leg-press calf raise'}]},
+    {k:'deadhang',n:'Weighted dead hang', t:'work', tier:2, sets:3, reps:'30\u201390s', rest:60, cue:'weight = added lbs \u00b7 past 90s? add 5',
       alts:[{k:'towelhang',n:'Towel hang'},{k:'farmerhold',n:'Heavy farmer hold'}]},
+    {k:'pushdown',n:'Cable pushdown', t:'work', tier:3, sets:2, reps:'8\u201315', rest:45,
+      alts:[{k:'tri_oh',n:'Overhead extension'},{k:'skullcrusher',n:'Skull crusher'},{k:'dips',n:'Dips'}]},
+    {k:'latraise',n:'Lateral raise', t:'work', tier:3, sets:3, reps:'12\u201320', rest:45,
+      alts:[{k:'latraise_cable',n:'Cable lateral raise'},{k:'latraise_machine',n:'Machine lateral raise'}]},
+    {k:'tibraise',n:'Wall tibialis raise', t:'work', tier:3, sets:2, reps:'20\u201325', rest:45, cue:'heels out from wall \u00b7 toes to shins',
+      alts:[{k:'tib_kb',n:'Seated KB tib raise'}]},
   ]},
 };
 // lifts shown on the Progress page (balanced upper + lower)
@@ -255,21 +259,21 @@ const JOINTS = {
   pain:   { label:'Painful', note:'Painful \u00b7 pain-free ROM only today \u2014 flag it to Derek' },
 };
 const JOINT_ORDER = ['ok','niggle','sore','pain'];
+// where you trained. "Other" gyms have different machines/plates, so those
+// sessions log honestly but never anchor future suggestions.
+const GYMS = { home:{ label:'Usual' }, other:{ label:'Other gym' } };
+const GYM_ORDER = ['home','other'];
 const TIMECAP = {
-  full:  { label:'Full',    pri:3 },
-  short: { label:'~40 min', pri:2 },
-  min:   { label:'~20 min', pri:1 },
+  full:  { label:'Full',    pri:3 },   // everything
+  short: { label:'~40 min', pri:2 },   // tier 1 + 2
+  min:   { label:'~25 min', pri:1 },   // tier 1 only
 };
 const TIME_ORDER = ['full','short','min'];
-// priority 1 = always do (main lifts + knee rehab), 2 = core work, 3 = accessory
-function slotPriority(ex) {
-  if (ex.t === 'top' || ex.t === 'pullup') return 1;
-  if (['wallsq','kneeext','legpress_slow','goblet_slow','spanishsq'].includes(ex.k)) return 1;
-  if (ex.rpe || ex.tempo) return 2;
-  return 3;
-}
+// tier comes straight from the program now — no guessing
+function slotPriority(ex) { return (ex && ex.tier) ? ex.tier : 3; }
+
 // a session whose numbers were deliberately eased — never anchors future suggestions
-const isEasedSession = s => !!(s && (s.reduced || s.deload ||
+const isEasedSession = s => !!(s && (s.reduced || s.deload || s.gym === 'other' ||
   (s.readiness && READINESS[s.readiness] && !READINESS[s.readiness].prog)));
 
 function topHistory(k) {
@@ -594,6 +598,18 @@ function weekLoad(isos) {
 
 // ---- per-exercise execution cues (mains + every alternate) ----
 const CUES = {
+  pullthrough:["Rope between the legs, cable low behind you.","Hips back, flat back, let the rope drag through.","Snap the hips forward — glutes finish it. No spinal load."],
+  carry:["One heavy DB, one hand. Stand tall.","Ribs down, shoulders level — don't lean away from it.","Walk or stand; set ends when posture breaks. Log seconds."],
+  hipthrust:["Shoulders on a bench, bar over the hips.","Drive through the heels, ribs down at the top.","Squeeze glutes, don't hyperextend the back."],
+  copenhagen:["Side plank, top leg on a bench.","Start bent-knee (shin on bench) before straightening.","Squeeze the adductor to lift the hips. Log seconds per side."],
+  adductor_machine:["Sit tall, pads on the inner thighs.","Squeeze in under control.","Slow return to a comfortable stretch."],
+  ballsqueeze:["Ball or towel between the knees, on your back.","Squeeze hard for the count.","Simple, and joint-friendly on a bad groin day."],
+  tibraise:["Back on the wall, heels ~a foot out.","Pull the toes up toward the shins.","Further from the wall = harder."],
+  tib_kb:["Sit, hang a KB over the toes.","Pull the toes up, slow lower.","Shin insurance for running and OCR."],
+  sumosq:["Wide stance, toes out, DB at the chest.","Sit straight down, knees tracking out.","Adductors do the work — chase depth over load."],
+  chop:["Cable high, pull down and across the body.","Rotate through the trunk, arms stay long.","Control it back up — no yanking."],
+  plank_ext:["Plank with elbows further forward than usual.","Ribs tucked, glutes on, don't let the hips sag.","Longer lever = much harder; shorten if the back arches."],
+  halfkneelpress:["Half-kneeling, ribs down, glute tight.","Press overhead without arching.","Control the return; the base stops you cheating."],
   // squat / knee / quad
   wallsq:["Upper back flat on the wall, heels raised on a plate.","Slide down slow — 2 s down, 2 s up.","Load the tendon; stop at discomfort, not sharp pain."],
   kneeext:["Up over 2 s, down over 2 s — no swinging.","Squeeze hard at the top.","Keep it to ~2 reps in reserve."],
@@ -797,16 +813,25 @@ function draftInfo(){
 
 // last exercise actually logged for a program slot (sticky swaps):
 // scans this day's sessions newest-first for any of the slot's candidate keys.
-function lastSlotChoice(day, baseK, alts){
+// For rotate:true slots the logic inverts — it returns the option you did NOT
+// do last time, so sumo/split and PM-tap/SL-RDL genuinely alternate.
+function lastSlotChoice(day, baseK, alts, rotate){
   const cand = [baseK, ...(alts||[]).map(a=>a.k)];
   const sess = Store.get().sessions.filter(s => s.day===day)
     .sort((a,b) => a.date===b.date ? (b.id-a.id) : (a.date<b.date ? 1 : -1));
   for (const s of sess){
     const hit = cand.find(k => s.exercises && s.exercises[k]);
-    if (hit) return hit;
+    if (hit) {
+      if (!rotate) return hit;
+      const partner = (alts||[])[0];            // the designated alternate
+      if (hit === baseK && partner) return partner.k;
+      if (partner && hit === partner.k) return baseK;
+      return hit;
+    }
   }
   return null;
 }
+
 
 // suggest next lift in rotation (based on most recent lift session), user can override
 function nextWorkout(){
