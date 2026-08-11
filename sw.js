@@ -4,7 +4,7 @@
 //            (2) make cache updates deterministic instead of iOS's guess.
 //  Bump CACHE_VERSION on every deploy — it wipes old caches on activate.
 // ============================================================
-const CACHE_VERSION = '2026.08.10-3';
+const CACHE_VERSION = '2026.08.10-4';
 const CACHE = 'pentathlon-' + CACHE_VERSION;
 
 // The app shell. Everything needed to open and log a workout with zero network.
@@ -61,8 +61,26 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Assets: serve from cache instantly, refresh in the background.
-  // ignoreSearch so app.js and app.js?v=123 are the same entry.
+  // Code (app.js / config.js / styles.css) is network-first with a short deadline.
+  // These MUST stay in lockstep with the HTML — serving a cached app.js against
+  // fresh HTML is what produced "undefined" chips. Cache is fallback only.
+  const isCode = url.origin === location.origin && /\.(js|css)$/.test(url.pathname);
+  if (isCode) {
+    e.respondWith((async () => {
+      try {
+        const fresh = await Promise.race([
+          fetch(req).then(res => { if (res && res.status === 200) caches.open(CACHE).then(c => c.put(req, res.clone())); return res; }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('slow')), 2500)),
+        ]);
+        return fresh;
+      } catch (err) {
+        return (await caches.match(req)) || (await caches.match(req, { ignoreSearch: true })) || Response.error();
+      }
+    })());
+    return;
+  }
+
+  // Everything else (icons, fonts, manifest): cache-first, refresh in background.
   e.respondWith((async () => {
     const cached = await caches.match(req, { ignoreSearch: true });
     const network = fetch(req).then(res => {

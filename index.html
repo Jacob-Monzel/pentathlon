@@ -41,7 +41,7 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=202608110021"></script>
+<script src="app.js?v=202608110027"></script>
 <script>
   boot(async () => {
   let offset = 0;
@@ -131,31 +131,53 @@
     return out;
   }
 
-  // Chips carry the meaning, so no prose is needed. Capped goals read "1/3";
-  // floors read "0 · 2+" until met, then just the count (extra is a bonus, not a miss).
+  // Compact planning chips. Tolerates an older app.js (floor/target) so a version
+  // skew degrades instead of printing "undefined".
   function goalChip(g, c) {
-    const n = c[g.key];
-    if (g.cap) {
-      const over = n > g.cap;
-      return `<span class="goal ${over ? 'over' : (n >= g.cap ? 'done' : '')}">${g.emoji} ${g.label} ${n}/${g.cap}</span>`;
+    const n = c[g.key] || 0;
+    const floor = (g.floor != null) ? g.floor : (g.target != null ? g.target : 1);
+    const cap = (g.cap != null) ? g.cap : null;
+    const ttl = `${g.label} \u00b7 ${cap ? 'cap ' + cap : 'aim ' + floor + '+'}`;
+    if (cap) {
+      const cls = n > cap ? 'over' : (n >= cap ? 'done' : '');
+      return `<span class="goal ${cls}" title="${ttl}">${g.emoji}<b>${n}</b><em>/${cap}</em></span>`;
     }
-    const met = n >= g.floor;
-    return `<span class="goal ${met ? 'done' : ''}">${g.emoji} ${g.label} ${n}${met ? '' : ` <em>${g.floor}+</em>`}</span>`;
-  }
-  // one short line, and only when something actually needs saying
-  function nudgeText(c) {
-    const overs = GOALS.filter(g => g.cap && c[g.key] > g.cap);
-    if (overs.length) return overs.map(g => `${c[g.key]} ${g.label.toLowerCase()} \u00b7 over your ${g.cap}/week cap`).join(' \u00b7 ');
-    return GOALS.every(g => c[g.key] >= g.floor) ? 'All floors met.' : '';
+    const met = n >= floor;
+    return `<span class="goal ${met ? 'done' : ''}" title="${ttl}">${g.emoji}<b>${n}</b>${met ? '' : `<em>/${floor}+</em>`}</span>`;
   }
   function render() {
     const days = weekDays(offset);
     const isos = days.map(d => d.iso), c = weekCounts(isos);
-    const nudge = nudgeText(c);
+
+    // days left in the week (current week only)
+    const idx = isos.indexOf(today);
+    const left = offset === 0 && idx > -1 ? 7 - idx : null;
+    // what to do next, and the one thing most worth doing
+    const gaps = GOALS.filter(g => {
+      const floor = (g.floor != null) ? g.floor : (g.target != null ? g.target : 1);
+      return (c[g.key] || 0) < floor && !(g.cap && (c[g.key] || 0) >= g.cap);
+    });
+    const load = (typeof weekLoad === 'function') ? weekLoad(isos).total : 0;
+    const overs = GOALS.filter(g => g.cap && (c[g.key] || 0) > g.cap);
+
+    let foot;
+    if (overs.length) {
+      foot = `<span class="gf-warn">${overs.map(g => `${c[g.key]} ${g.label.toLowerCase()} \u00b7 over cap ${g.cap}`).join(' \u00b7 ')}</span>`;
+    } else if (gaps.length) {
+      const liftGap = gaps.find(g => g.key === 'lift');
+      const nextLbl = liftGap && PROGRAM[nextWorkout()] ? PROGRAM[nextWorkout()].label : gaps[0].label;
+      const href = liftGap ? `workout.html?day=${nextWorkout()}&date=${today}` : `day.html?date=${today}`;
+      foot = `<a class="gf-next" href="${href}">Next \u00b7 ${nextLbl} \u203a</a>
+              <span class="gf-rest">${gaps.filter(g => g !== (liftGap || gaps[0])).map(g => g.emoji).join(' ')}</span>`;
+    } else {
+      foot = `<span class="gf-ok">All floors met \u2713</span>`;
+    }
+
     goals.innerHTML =
-      `<div class="goals-h">${offset === 0 ? 'This week' : 'That week'}</div>
+      `<div class="goals-h"><span>${offset === 0 ? 'This week' : 'That week'}</span>
+         <span class="goals-meta">${load ? load + ' AU' : ''}${load && left !== null ? ' \u00b7 ' : ''}${left !== null ? left + (left === 1 ? ' day left' : ' days left') : ''}</span></div>
        <div class="goalrow">${GOALS.map(g => goalChip(g, c)).join('')}</div>
-       ${nudge ? `<div class="nudge${/over your/.test(nudge) ? ' warn' : ''}">${nudge}</div>` : ''}`;
+       <div class="goals-foot">${foot}</div>`;
     wklabel.textContent = `${days[0].mon} ${days[0].dom} \u2013 ${days[6].mon} ${days[6].dom}` + (offset === 0 ? '  \u00b7  this week' : '');
     wk.innerHTML = '';
     days.forEach(d => {
