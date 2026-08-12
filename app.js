@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.12-2';
+const APP_VERSION = '2026.08.12-3';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -51,10 +51,10 @@ const PROGRAM = {
       alts:[{k:'incline_bb',n:'Barbell incline (w/ spotter)'},{k:'incline_db',n:'DB incline press'},{k:'incline_machine',n:'Machine incline press'}]},
     {k:'rdl',     n:'Romanian deadlift', t:'work', tier:1, sets:3, reps:'5\u20138', rpe:7, rest:90, cue:'strict \u00b7 stop at the stretch',
       alts:[{k:'rdl_db',n:'DB RDL'},{k:'pullthrough',n:'Cable pull-through'}]},
-    {k:'sumosq',  n:'DB sumo squat', t:'work', tier:2, sets:3, reps:'6\u201310', rest:90, rotate:true, cue:'adductors \u00b7 alternates w/ split squat',
-      alts:[{k:'splitsq',n:'DB split squat'},{k:'bulgarian',n:'Bulgarian split squat'},{k:'reverselunge',n:'Reverse lunge'}]},
-    {k:'row_db',  n:'DB row', t:'work', tier:2, sets:4, reps:'8\u201312', rest:90,
-      alts:[{k:'cablerow',n:'Cable row'},{k:'row_machine',n:'Machine row'}]},
+    {k:'legpress_sumo', n:'Wide-stance leg press', t:'work', tier:2, sets:3, reps:'6\u201310', rest:90, rotate:true, cue:'adductors \u00b7 alternates w/ split squat',
+      alts:[{k:'splitsq',n:'DB split squat'},{k:'sumosq_bb',n:'Wide-stance barbell squat'},{k:'sumosq',n:'DB sumo squat'},{k:'bulgarian',n:'Bulgarian split squat'},{k:'reverselunge',n:'Reverse lunge'}]},
+    {k:'row_bb_chest', n:'Chest-supported barbell row', t:'work', tier:2, sets:4, reps:'8\u201312', rest:90, inc:5, cue:'chest stays on the pad \u00b7 no heaving',
+      alts:[{k:'row_machine',n:'Machine row'},{k:'row_db',n:'DB row'},{k:'cablerow',n:'Cable row'}]},
     {k:'halfkneelpress',n:'Half-kneeling DB press', t:'work', tier:2, sets:2, reps:'6\u201310 / side', rest:60, cue:'ribs down, glute on',
       alts:[{k:'ohp_db',n:'DB shoulder press'},{k:'ohp_landmine',n:'Landmine press'}]},
     {k:'latraise',n:'Lateral raise', t:'work', tier:3, sets:3, reps:'12\u201320', rest:45,
@@ -459,6 +459,7 @@ const EX_MUSCLES = {
   halfkneelpress:[['Front delts',1],['Triceps',.5],['Core',.5]],
   cablerow:[['Back',1],['Biceps',.5],['Rear delts',.5]], row:[['Back',1],['Biceps',.5],['Rear delts',.5]],
   row_db:[['Back',1],['Biceps',.5],['Rear delts',.5]], row_machine:[['Back',1],['Biceps',.5],['Rear delts',.5]],
+  row_bb_chest:[['Back',1],['Biceps',.5],['Rear delts',.5]],
   pullup:[['Back',1],['Biceps',.5]], pullup_neutral:[['Back',1],['Biceps',.5]], chinup:[['Back',1],['Biceps',.5]],
   pulldown_wide:[['Back',1],['Biceps',.5]],
   legpress:[['Quads',1],['Glutes',.5]], hacksquat:[['Quads',1],['Glutes',.5]], gobletsq:[['Quads',1],['Glutes',.5]],
@@ -470,6 +471,7 @@ const EX_MUSCLES = {
   legcurl:[['Hamstrings',1]], legcurl_seated:[['Hamstrings',1]], slider_curl:[['Hamstrings',1]], nordic:[['Hamstrings',1]],
   pmtap:[['Glutes',1],['Hamstrings',.5]], slrdl:[['Glutes',1],['Hamstrings',.5]], stepdown:[['Glutes',1],['Quads',.5]],
   sumosq:[['Adductors',1],['Quads',.5],['Glutes',.5]], splitsq:[['Quads',1],['Glutes',.5]],
+  legpress_sumo:[['Adductors',1],['Quads',.5],['Glutes',.5]], sumosq_bb:[['Adductors',1],['Quads',.5],['Glutes',.5]],
   bulgarian:[['Quads',1],['Glutes',.5]], reverselunge:[['Quads',1],['Glutes',.5]],
   cossack:[['Adductors',1],['Glutes',.5],['Quads',.5]], latlunge:[['Adductors',1],['Glutes',.5]],
   lateralstepup:[['Glutes',1],['Quads',.5]],
@@ -693,6 +695,8 @@ const CUES = {
   tibraise:["Back on the wall, heels ~a foot out.","Pull the toes up toward the shins.","Further from the wall = harder."],
   tib_kb:["Sit, hang a KB over the toes.","Pull the toes up, slow lower.","Shin insurance for running and OCR."],
   sumosq:["Wide stance, toes out, DB at the chest.","Sit straight down, knees tracking out.","Adductors do the work — chase depth over load."],
+  legpress_sumo:["Feet high and WIDE on the platform, toes turned out.","Knees track out over the toes, full depth.","Adductors do the work — the stack keeps loading long after a DB stops."],
+  sumosq_bb:["Bar on the back, stance wide, toes out ~30°.","Sit straight down between the hips, chest tall.","Brace hard — this one loads the spine, keep it strict."],
   chop:["Cable high, pull down and across the body.","Rotate through the trunk, arms stay long.","Control it back up — no yanking."],
   plank_ext:["Plank with elbows further forward than usual.","Ribs tucked, glutes on, don't let the hips sag.","Longer lever = much harder; shorten if the back arches."],
   halfkneelpress:["Half-kneeling, ribs down, glute tight.","Press overhead without arching.","Control the return; the base stops you cheating."],
@@ -746,6 +750,7 @@ const CUES = {
   cablerow:["Tall chest, pull to the belly.","Drive the elbows back, squeeze the blades.","Control the stretch forward."],
   row:["Chest supported, row to the lower ribs.","Elbows back, squeeze the mid-back.","Full stretch each rep, no heave."],
   row_db:["Hand and knee on a bench, flat back.","Row the DB to the hip, elbow tight.","Lower to a full stretch."],
+  row_bb_chest:["Chest on an incline bench, barbell hanging at arm’s length.","Row to the ribs, elbows ~45°, squeeze the mid-back.","Chest never leaves the pad — that’s what keeps it off your low back."],
   row_machine:["Chest on the pad, grab the handles.","Pull to the ribs, squeeze the blades.","Slow return to a full stretch."],
   chestpress:["Seat set so handles meet mid-chest.","Press smooth, don't lock hard.","Control back until a slight stretch."],
   incline_machine:["Seat set so handles start below the collarbone.","Drive up and slightly back.","2 seconds down, no bounce."],
@@ -815,13 +820,11 @@ const CUES = {
   pmtap:["Stand on one leg, soft knee.","Reach the free foot back-and-in, tap light.","Control the hip; chase a little more range weekly."],
   stepdown:["On a step, one leg.","Lower the other heel slowly to tap the floor.","Knee over the toes, control up."],
   slrdl:["One leg, hinge at the hip, flat back.","Reach the DB down, back leg extends.","Feel the hamstring/glute, stand tall controlled."],
-  sumosq:["Wide stance, toes out, DB at the chest.","Sit straight down, knees over toes.","Push the knees out; chase depth over load."],
   cossack:["Wide stance, shift over one bent leg.","Other leg straight, heel down, sink low.","Range and control side to side."],
   latlunge:["Step wide, sit into that hip.","Other leg straight, chest tall.","Push back to center; range over weight."],
   lateralstepup:["Side-on to a box, step up with the near leg.","Control the drive up and the lower down.","No push-off from the trailing foot."],
   armbar:["On your back, press a DB/KB up, roll to the shoulder.","Keep the arm locked and stacked.","Slow — it's a position drill."],
   windmill:["Weight locked overhead, eyes on it.","Hinge to the side, hand slides down the leg.","Move slowly, own the position."],
-  halfkneelpress:["Half-kneeling, ribs down, glute tight.","Press overhead without arching.","Control the return."],
   halo:["Half-kneeling, circle a KB/DB around the head.","Tight core, ribs down.","Slow circles both directions."],
   // calves
   calf_stand:["Balls of the feet on a plate/step, straight knees.","Rise tall, pause, lower slow into a deep stretch.","2 s up / 2 s down — this is tendon work."],
@@ -912,7 +915,9 @@ function lastSlotChoice(day, baseK, alts, rotate){
       const partner = (alts||[])[0];            // the designated alternate
       if (hit === baseK && partner) return partner.k;
       if (partner && hit === partner.k) return baseK;
-      return hit;
+      // an off-rotation swap (or a lift that used to be the base) — resume the
+      // prescribed rotation rather than sticking on it forever
+      return baseK;
     }
   }
   return null;
