@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.12-9';
+const APP_VERSION = '2026.08.12-10';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -380,9 +380,22 @@ function suggest(k, ex, gym) {
 const DELOAD = { loadF: 0.9, tierCap: 1, minGapDays: 21, minSessions: 6,
   minActivities: 12,      // enough non-lifting history to read a trend
   monotonyHi: 2.0,        // Foster: sameness of day-to-day load, >2 recovers poorly
-  rampHi: 1.5 };          // this week vs the mean of the previous three
+  rampHi: 1.5,            // this week vs the mean of the previous three
+  snoozeDays: 7 };        // "not now" — these signals move slowly, don't re-ask tomorrow
 const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
 
+// "Not now" on a deload suggestion. The signals are slow-moving, so asking again
+// the next day is just nagging. Manual deloads are always available regardless.
+function deloadSnoozed() {
+  const u = Store.get().deloadSnooze;
+  return !!(u && todayISO() <= u);
+}
+function snoozeDeload() {
+  const [y,m,d] = todayISO().split('-').map(Number);
+  const until = isoOf(new Date(y, m-1, d + DELOAD.snoozeDays));
+  Store.update(s => { s.deloadSnooze = until; });
+  return until;
+}
 function lastDeloadDate() {
   const d = Store.get().sessions.filter(s => s.deload).sort((a,b) => a.date < b.date ? 1 : -1)[0];
   return d ? d.date : null;

@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026.08.12-9">
+<link rel="stylesheet" href="styles.css?v=2026.08.12-10">
 </head>
 <body>
 <div class="whead">
@@ -63,7 +63,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=2026.08.12-9"></script>
+<script src="app.js?v=2026.08.12-10"></script>
 <script>
   boot(async () => {
   const params = new URLSearchParams(location.search);
@@ -237,10 +237,20 @@
       dOff.onclick = () => { draft.deload = false; applyPlan(); save(); renderDeload(); renderCheckin(); render(); };
       return;
     }
+    const on = () => { draft.deload = true; applyPlan(); save(); renderDeload(); renderCheckin(); render(); };
     const f = fatigueSignals();
-    if (!f.recommend) { deloadBanner.innerHTML = ''; return; }
-    deloadBanner.innerHTML = `<div class="dbanner"><div><b>Fatigue is stacking up</b><span>${f.reasons.join(' \u00b7 ')}</span></div><button id="dOn">Deload</button></div>`;
-    dOn.onclick = () => { draft.deload = true; applyPlan(); save(); renderDeload(); renderCheckin(); render(); };
+    // Suggested — but always dismissable. You know things the app doesn't.
+    if (f.recommend && !deloadSnoozed()) {
+      deloadBanner.innerHTML = `<div class="dbanner"><div><b>Fatigue is stacking up</b><span>${f.reasons.join(' \u00b7 ')}</span></div>
+        <div class="dbtns"><button id="dSkip" class="dskip">Not now</button><button id="dOn">Deload</button></div></div>`;
+      dOn.onclick = on;
+      dSkip.onclick = () => { snoozeDeload(); renderDeload(); };
+      return;
+    }
+    // Nothing firing (or dismissed): a quiet way in. Your own read, or a coach's,
+    // beats the detector — it only sees what you've logged.
+    deloadBanner.innerHTML = `<button class="dmanual" id="dMan">Make this a deload session</button>`;
+    dMan.onclick = on;
   }
 
   let t3open = false;

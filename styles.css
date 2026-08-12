@@ -337,6 +337,16 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
   color:var(--text);font-weight:600;font-size:14px;box-shadow:var(--shadow);text-align:left}
 .addsports button:active{border-color:var(--accent);background:var(--accent-soft)}
 
+/* manual deload entry — always available, deliberately quiet */
+.dmanual{width:100%;padding:10px;border-radius:11px;border:1px dashed var(--line);
+  background:transparent;color:var(--faint);font-family:var(--mono);font-size:11px;
+  font-weight:700;text-align:center;margin:0 0 4px}
+.dmanual:active{border-color:var(--accent);color:var(--accent)}
+.dbtns{display:flex;gap:7px;align-items:center;flex:0 0 auto}
+.dskip{background:transparent;color:var(--muted);font-family:var(--mono);font-size:11px;
+  font-weight:700;padding:8px 10px;border-radius:9px}
+.dskip:active{color:var(--accent)}
+
 /* weekly plan — a static seasonal template, not a scorecard */
 .planhead{background:var(--surface);border:1px solid var(--line);border-radius:14px;
   padding:14px 16px;box-shadow:var(--shadow)}
