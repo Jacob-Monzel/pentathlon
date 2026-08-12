@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.12-8';
+const APP_VERSION = '2026.08.12-9';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -377,7 +377,10 @@ function suggest(k, ex, gym) {
 // A deload keeps the same lifts and frequency but strips volume: tier 1 only,
 // load eased ~10%, stop well shy of failure. That matches what the athlete
 // survey data actually describes (volume down, frequency and exercises kept).
-const DELOAD = { loadF: 0.9, tierCap: 1, minGapDays: 21, minSessions: 6 };
+const DELOAD = { loadF: 0.9, tierCap: 1, minGapDays: 21, minSessions: 6,
+  minActivities: 12,      // enough non-lifting history to read a trend
+  monotonyHi: 2.0,        // Foster: sameness of day-to-day load, >2 recovers poorly
+  rampHi: 1.5 };          // this week vs the mean of the previous three
 const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
 
 function lastDeloadDate() {
@@ -387,7 +390,10 @@ function lastDeloadDate() {
 function fatigueSignals() {
   const sess = Store.get().sessions.filter(s => WORKOUTS.includes(s.day))
     .sort((a,b) => a.date === b.date ? ((a.id||0)-(b.id||0)) : (a.date < b.date ? -1 : 1));
-  const out = { reasons: [], recommend: false, enough: sess.length >= DELOAD.minSessions };
+  const acts = (Store.get().activities || []).filter(a => a.srpe);
+  // Lifting is a minority of the week now, so enough data can come from either side.
+  const out = { reasons: [], context: [], recommend: false,
+                enough: sess.length >= DELOAD.minSessions || acts.length >= DELOAD.minActivities };
   if (!out.enough) return out;
   const recent = sess.slice(-6);
 
@@ -423,10 +429,39 @@ function fatigueSignals() {
   const flares = (Store.get().episodes || []).filter(e => daysBetween(e.date, today) <= 14).length;
   if (flares >= 2) out.reasons.push(`${flares} flares in the last 2 weeks`);
 
+  // ---- 5. sRPE creep across the other sports -------------------------------
+  // Same discipline, same-or-less time on task, rated harder than it was. This is
+  // the cross-sport twin of signal 1, and it measures COST, so it counts as evidence.
+  let drift = 0;
+  ['run','swim','fence','ninja'].forEach(t => {
+    const h = acts.filter(a => a.type === t).sort((a,b) => a.date < b.date ? -1 : 1);
+    if (h.length < 4) return;
+    const late = h.slice(-2), early = h.slice(-4, -2);
+    const avg  = arr => arr.reduce((x,a) => x + (+a.srpe), 0) / arr.length;
+    const mins = arr => arr.reduce((x,a) => x + actMinutes(a), 0) / arr.length;
+    if (avg(late) - avg(early) >= 1 && mins(late) <= mins(early) * 1.05) drift++;
+  });
+  if (drift >= 2) out.reasons.push(`${drift} sports feeling harder for the same work`);
+
+  // ---- context: load SHAPE, never sufficient on its own ---------------------
+  // Load is not fatigue. Adding swims lifts volume, monotony and strain by design;
+  // that is a plan working, not a body failing. These corroborate, they never fire alone.
+  const roll = weekLoad(lastDays(7));
+  if (roll.total > 0 && roll.monotony >= DELOAD.monotonyHi)
+    out.context.push('every day at much the same intensity');
+  const prior21 = weekLoad(lastDays(28)).total - roll.total;   // the 21 days before that
+  const base = prior21 / 3;
+  if (base > 0 && roll.total >= base * DELOAD.rampHi)
+    out.context.push('a sharp jump on the last three weeks');
+
   const last = lastDeloadDate();
   out.daysSince = last ? daysBetween(last, today) : null;
   const gapOk = !last || out.daysSince >= DELOAD.minGapDays;
-  out.recommend = out.reasons.length >= 2 && gapOk;
+  // At least one signal must be actual evidence of cost. Two context flags alone
+  // describe a hard training week, which is not a reason to deload.
+  const evidence = out.reasons.length;
+  out.reasons = out.reasons.concat(out.context);
+  out.recommend = evidence >= 1 && out.reasons.length >= 2 && gapOk;
   return out;
 }
 
@@ -961,6 +996,15 @@ function activitySummary(a){
 // The week containing `ref` (an ISO date), or the current week when ref is omitted.
 // Pages that show a specific day must pass it — otherwise back-filling last
 // Thursday would consult THIS week's completed slots.
+// The last n days ENDING today. Load monitoring wants a rolling window, not a
+// calendar week: on a Wednesday the current week is 3/7 elapsed, so its monotony
+// is computed over trailing zeros and its total can't fairly meet a ramp test.
+function lastDays(n, endIso){
+  const [y,m,d] = (endIso || todayISO()).split('-').map(Number);
+  const out = [];
+  for (let i = n-1; i >= 0; i--) out.push(isoOf(new Date(y, m-1, d-i)));
+  return out;
+}
 function weekDays(offset=0, ref){
   const now = ref ? (([y,m,d]) => new Date(y, m-1, d))(ref.split('-').map(Number)) : new Date();
   const dow=(now.getDay()+6)%7; // Mon=0
