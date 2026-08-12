@@ -28,6 +28,9 @@ check() {
   [ "$sw" = "$cur" ] || { echo "  ✗ sw.js is out of step"; bad=1; }
   for f in *.html; do
     local a s
+    # a stray HTML file that never loads app.js (a scratch preview, a doc) isn't a
+    # page — skip it, or the consistency check goes permanently red for no reason
+    grep -q 'src="app\.js' "$f" || continue
     a=$(perl -ne "if (/src=.app\.js\?v=($VER_RE)/) { print \$1; last }" "$f" || true)
     s=$(perl -ne "if (/href=.styles\.css\?v=($VER_RE)/) { print \$1; last }" "$f" || true)
     if [ "$a" != "$cur" ] || [ "$s" != "$cur" ]; then
@@ -57,6 +60,7 @@ fi
 perl -pi -e "s/(APP_VERSION\s*=\s*')$VER_RE(')/\${1}$new\${2}/" app.js
 perl -pi -e "s/(CACHE_VERSION\s*=\s*')$VER_RE(')/\${1}$new\${2}/" sw.js
 for f in *.html; do
+  grep -q 'src="app\.js' "$f" || continue      # not an app page — leave it alone
   # Only ever touch the src=/href= attributes. Bare "app.js" also appears in
   # comments and warning strings — rewriting those was a real bug once.
   perl -pi -e "s/(src=[\"'])app\.js(\?v=[^\"']*)?/\${1}app.js?v=$new/g"          "$f"
