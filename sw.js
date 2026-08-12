@@ -4,7 +4,7 @@
 //            (2) make cache updates deterministic instead of iOS's guess.
 //  Bump CACHE_VERSION on every deploy — it wipes old caches on activate.
 // ============================================================
-const CACHE_VERSION = '2026.08.12-1';
+const CACHE_VERSION = '2026.08.12-2';
 const CACHE = 'pentathlon-' + CACHE_VERSION;
 
 // The app shell. Everything needed to open and log a workout with zero network.

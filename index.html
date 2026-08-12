@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026.08.12-1">
+<link rel="stylesheet" href="styles.css?v=2026.08.12-2">
 </head>
 <body>
 <div class="page home">
@@ -41,7 +41,7 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=2026.08.12-1"></script>
+<script src="app.js?v=2026.08.12-2"></script>
 <script>
   boot(async () => {
   let offset = 0;
@@ -168,7 +168,22 @@
   }
   prev.onclick = () => { offset--; render(); };
   next.onclick = () => { offset++; render(); };
-  out.onclick = e => { e.preventDefault(); Auth.logout(); };
+  // log out — always confirm. It sits one tap from Backup in the footer, and it
+  // wipes this device's local copy, so a mis-tap is expensive.
+  out.onclick = async e => {
+    e.preventDefault();
+    const di = draftInfo();
+    const risk = [];
+    if (di) risk.push(`an unfinished ${di.label} (${di.sets} set${di.sets===1?'':'s'})`);
+    if (Store.pending()) risk.push('changes that haven\u2019t synced yet');
+    const msg = risk.length
+      ? `Log out?\n\nThis device still has ${risk.join(' and ')}. Logging out clears the local copy — anything that can\u2019t reach the cloud first is lost.`
+      : 'Log out?\n\nYour data stays in the cloud. You\u2019ll need your email and password to get back in.';
+    if (!confirm(msg)) return;
+    out.textContent = 'Logging out\u2026';
+    out.style.pointerEvents = 'none';
+    await Auth.logout();
+  };
   render();
   });
 </script>

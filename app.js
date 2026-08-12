@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.12-1';
+const APP_VERSION = '2026.08.12-2';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -182,7 +182,16 @@ function netBadge() {
 }
 
 const Auth = {
-  async logout() { await Cloud.signOut(); Store.clearLocal(); location.href = 'login.html'; },
+  // Order matters: push anything still queued BEFORE wiping the device. Saves are
+  // debounced 600ms, so a logout tapped right after logging a set would otherwise
+  // drop it. Both network steps get a deadline — on weak signal they stall rather
+  // than fail, and a logout that hangs forever is worse than one that syncs late.
+  async logout() {
+    try { await withTimeout(Store.flush(), 3000); } catch (e) {}
+    try { await withTimeout(Cloud.signOut(), 3000); } catch (e) {}
+    Store.clearLocal();
+    location.href = 'login.html';
+  },
 };
 
 // gate + sync, then render the page. Falls back to local-only if Supabase isn't configured yet.
