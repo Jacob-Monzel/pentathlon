@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.12-3';
+const APP_VERSION = '2026.08.12-4';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -953,8 +953,12 @@ function activitySummary(a){
   return '';
 }
 // current week (Mon-first) with optional week offset
-function weekDays(offset=0){
-  const now=new Date(); const dow=(now.getDay()+6)%7; // Mon=0
+// The week containing `ref` (an ISO date), or the current week when ref is omitted.
+// Pages that show a specific day must pass it — otherwise back-filling last
+// Thursday would consult THIS week's completed slots.
+function weekDays(offset=0, ref){
+  const now = ref ? (([y,m,d]) => new Date(y, m-1, d))(ref.split('-').map(Number)) : new Date();
+  const dow=(now.getDay()+6)%7; // Mon=0
   const mon=new Date(now.getFullYear(),now.getMonth(),now.getDate()-dow+offset*7);
   const names=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   return Array.from({length:7},(_,i)=>{ const d=new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+i);
