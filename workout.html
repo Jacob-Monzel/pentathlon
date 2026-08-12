@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026.08.12-11">
+<link rel="stylesheet" href="styles.css?v=2026.08.12-12">
 </head>
 <body>
 <div class="whead">
@@ -63,7 +63,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=2026.08.12-11"></script>
+<script src="app.js?v=2026.08.12-12"></script>
 <script>
   boot(async () => {
   const params = new URLSearchParams(location.search);
@@ -158,7 +158,7 @@
       let w = '';
       if (slot.t === 'top' || slot.t === 'pullup') w = i === 0 ? (w0 || '') : '';
       else w = w0 || '';
-      st.sets.push({ w: w === 0 ? '' : w, r: '', rpe: '', done: false, touched: false });
+      st.sets.push({ w: w === 0 ? '' : w, r: '', rpe: '', done: false, touched: false, skipped: false });
     }
   }
   slots.forEach(seedSlot); save();
@@ -177,8 +177,10 @@
     slots.forEach(slot => {
       const st = exState(slot.k), sg = st.sugg;
       const want = setCountFor(slot);
-      while (st.sets.length > want && !st.sets[st.sets.length-1].touched) st.sets.pop();
-      while (st.sets.length < want) st.sets.push({ w:'', r:'', rpe:'', done:false, touched:false });
+      // never silently drop a set the athlete explicitly marked, done or skipped
+      while (st.sets.length > want && !st.sets[st.sets.length-1].touched
+             && !st.sets[st.sets.length-1].skipped) st.sets.pop();
+      while (st.sets.length < want) st.sets.push({ w:'', r:'', rpe:'', done:false, touched:false, skipped: false });
       if (!sg || !sg.w) return;
       const t = targetW(sg) || '';
       st.sets.forEach((set, i) => {
@@ -279,12 +281,12 @@
       st.sets.forEach((set, i) => {
         const pw = (prev[i] && prev[i].w !== undefined && prev[i].w !== '') ? prev[i].w : '';
         const pr = (prev[i] && prev[i].r) ? prev[i].r : repHint;
-        rows += `<div class="setrow" data-k="${slot.k}" data-i="${i}">
+        rows += `<div class="setrow${set.skipped?' skipped':''}" data-k="${slot.k}" data-i="${i}">
           <span class="setn">${i+1}</span>
           <input class="sw" inputmode="numeric" value="${set.w}" placeholder="${pw}">
           <input class="sr" inputmode="numeric" value="${set.r}" placeholder="${pr}">
           ${hasRpe(slot)?`<input class="srpe" inputmode="numeric" value="${set.rpe}" placeholder="${i===0&&slot.rpe?slot.rpe:''}">`:''}
-          <button class="chk ${set.done?'on':''}">✓</button>
+          <button class="chk ${set.done?'on':set.skipped?'skip':''}">${set.skipped?'\u2715':'\u2713'}</button>
         </div>`;
       });
       const opts = slotOpts(slot).filter(o => o.k !== slot.k);
@@ -334,18 +336,29 @@
       sw.oninput = () => { set.w = sw.value; set.touched = true; anchorClock(); if (i === 0 && curSlot(k).t === 'top') refillBackoff(k); save(); };
       sr.oninput = () => { set.r = sr.value; set.touched = true; anchorClock(); save(); };
       if (srpe) srpe.oninput = () => { set.rpe = srpe.value; set.touched = true; anchorClock(); save(); };
+      // one tap = done, another = skipped, another = back to blank
       chk.onclick = () => {
-        set.done = !set.done;
-        if (set.done) {
+        if (!set.done && !set.skipped) {            // blank → done
+          set.done = true; set.skipped = false;
           set.touched = true; anchorClock(); if (sw.value) set.w = sw.value; if (sr.value) set.r = sr.value;
           startRest(restSecFor(curSlot(k)));
           flagPR(k, set, row);
-        } else { row.classList.remove('pr'); }
-        chk.classList.toggle('on', set.done); save();
+        } else if (set.done) {                      // done → skipped
+          set.done = false; set.skipped = true;
+          row.classList.remove('pr');
+          draft.restEnd = null; renderRest();       // you don't rest after a set you didn't do
+        } else {                                    // skipped → blank
+          set.skipped = false;
+        }
+        chk.classList.toggle('on', set.done);
+        chk.classList.toggle('skip', set.skipped);
+        chk.textContent = set.skipped ? '\u2715' : '\u2713';
+        row.classList.toggle('skipped', set.skipped);
+        save();
       };
     });
     wlist.querySelectorAll('.addset').forEach(b => b.onclick = () => {
-      exState(b.dataset.k).sets.push({ w:'', r:'', rpe:'', done:false, touched:false }); save(); render();
+      exState(b.dataset.k).sets.push({ w:'', r:'', rpe:'', done:false, touched:false, skipped: false }); save(); render();
     });
     wlist.querySelectorAll('.rmset').forEach(b => b.onclick = () => {
       const st = exState(b.dataset.k);
@@ -441,7 +454,42 @@
   });
 
   exit.onclick = () => { if (!draftHasContent(draft)) Store.update(s => { s.draft = null; }); backToDay(); };
+  // A set left blank is ambiguous — did you skip it, or forget to log it? Ask once,
+  // at the only moment it can still be fixed. Untouched extras get a softer prompt:
+  // not doing them is a normal choice, not a mistake, and nagging identically about
+  // both would train you to dismiss the prompt without reading it.
+  function unmarkedSets() {
+    const hard = [], soft = [];
+    slots.forEach(slot => {
+      const st = exState(slot.k);
+      if (draft.deload && slotPriority(slot) > DELOAD.tierCap) return;   // hidden by design
+      const open = st.sets.filter(x => !x.done && !x.skipped && x.w === '' && x.r === '').length;
+      if (!open) return;
+      const started = st.sets.some(x => x.touched || x.done || x.skipped);
+      const optional = !started && (slotPriority(slot) === 3 || !inScope(slot));
+      (optional ? soft : hard).push({ k: slot.k, n: slot.n, open });
+    });
+    return { hard, soft };
+  }
+  const markAllSkipped = groups => groups.forEach(g =>
+    exState(g.k).sets.forEach(x => { if (!x.done && !x.skipped && x.w === '' && x.r === '') x.skipped = true; }));
+
   finish.onclick = () => {
+    const u = unmarkedSets();
+    const count = list => list.reduce((a, x) => a + x.open, 0);
+    if (u.hard.length) {
+      const n = count(u.hard), e = u.hard.length;
+      // a phone-sized prompt: name them only while the list stays readable
+      const list = e <= 4
+        ? '\n' + u.hard.map(x => `\u00b7 ${x.n} (${x.open})`).join('\n')
+        : ` across ${e} exercises`;
+      if (!confirm(`${n} set${n===1?'':'s'} not marked${e<=4?':':''}${list}\n\nOK logs them as skipped and finishes.\nCancel goes back so you can do them.`)) return;
+    } else if (u.soft.length) {
+      const n = count(u.soft), e = u.soft.length;
+      if (!confirm(`Extras not done \u2014 ${n} set${n===1?'':'s'} across ${e} exercise${e===1?'':'s'}.\n\nOK logs them as skipped and finishes.\nCancel goes back if you want to squeeze them in.`)) return;
+    }
+    markAllSkipped(u.hard.concat(u.soft));
+    save(); render();
     if (!durMin.value && draft.startedAt) durMin.value = Math.max(1, Math.round((Date.now() - draft.startedAt) / 60000));
     sheet.classList.add('on');
   };
@@ -449,9 +497,13 @@
   once(fbSave, () => {
     const exercises = {};
     slots.forEach(slot => {
-      const sets = exState(slot.k).sets.filter(s => s.touched && (s.w !== '' || s.r !== ''))
+      const st = exState(slot.k);
+      const sets = st.sets.filter(s => !s.skipped && s.touched && (s.w !== '' || s.r !== ''))
         .map(s => ({ w: s.w, r: s.r, ...(s.rpe !== '' ? { rpe: s.rpe } : {}), ...(slot.added ? { added: true } : {}) }));
-      if (sets.length) exercises[slot.k] = { sets };
+      // a COUNT, not entries in sets[] — anything added there would leak into
+      // suggest(), e1RM and the volume audit, and one call site would get missed
+      const skipped = st.sets.filter(s => s.skipped).length;
+      if (sets.length || skipped) exercises[slot.k] = { sets, ...(skipped ? { skipped } : {}) };
     });
     const note = fbNote.value.trim();
     Store.update(s => {

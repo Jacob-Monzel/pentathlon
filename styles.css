@@ -176,6 +176,9 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 .seth span{font-family:var(--mono);font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;text-align:center}
 .seth span:first-child{text-align:left}
 .setrow{padding:5px 0;position:relative}
+/* a set you deliberately didn't do — visibly settled, not an unfinished blank */
+.setrow.skipped{opacity:.45}
+.setrow.skipped input{text-decoration:line-through}
 .setrow.pr::after{content:'PR';position:absolute;top:-7px;right:2px;background:var(--green);color:#fff;
   font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.05em;padding:2px 6px;border-radius:20px;
   box-shadow:var(--shadow);z-index:2}
@@ -187,6 +190,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 .chk{width:38px;height:38px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);
   color:var(--faint);font-size:15px;font-weight:700}
 .chk.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.chk.skip{background:var(--surface2);border-color:var(--line);color:var(--muted);font-weight:700}
 .boff{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--accent)}
 .exfoot{display:flex;align-items:center;gap:12px;margin-top:10px}
 .addset{font-family:var(--mono);font-size:12px;color:var(--accent);border:1px dashed var(--accent);

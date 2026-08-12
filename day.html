@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026.08.12-11">
+<link rel="stylesheet" href="styles.css?v=2026.08.12-12">
 </head>
 <body>
 <div class="page">
@@ -45,7 +45,7 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=2026.08.12-11"></script>
+<script src="app.js?v=2026.08.12-12"></script>
 <script>
   boot(async () => {
   const date = new URLSearchParams(location.search).get('date') || todayISO();
@@ -57,10 +57,13 @@
     if (!sess.length && !acts.length) { logged.innerHTML = '<div class="empty">Nothing logged yet.<br>Add an activity below.</div>'; return; }
     let html = '<div class="actlist">';
     sess.forEach(s => {
-      const n = Object.keys(s.exercises || {}).length;
+      // an exercise that was entirely skipped isn't "logged" — don't inflate the count
+      const ex = s.exercises || {};
+      const n = Object.keys(ex).filter(k => ex[k] && ex[k].sets && ex[k].sets.length).length;
+      const sk = Object.keys(ex).reduce((a,k) => a + (+(ex[k] && ex[k].skipped) || 0), 0);
       const semoji = (typeof ATHLETIC_DAYS !== 'undefined' && ATHLETIC_DAYS.includes(s.day)) ? '\u26A1' : '\u{1F3CB}\uFE0F';
       html += `<div class="actrow"><div class="act-emoji">${semoji}</div>
-        <div class="act-body"><b>${dayLabel(s.day)}</b><span>${n} exercise${n===1?'':'s'} logged</span></div>
+        <div class="act-body"><b>${dayLabel(s.day)}</b><span>${n} exercise${n===1?'':'s'} logged${sk?` \u00b7 ${sk} set${sk===1?'':'s'} skipped`:''}</span></div>
         <button class="act-del" data-sid="${s.id}">\u2715</button></div>`;
     });
     acts.forEach(a => {
