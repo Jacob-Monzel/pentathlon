@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.12-4';
+const APP_VERSION = '2026.08.12-5';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -1094,7 +1094,7 @@ function nextRun(isos) {
 const GOALS = [
   {key:'lift',     emoji:'\u{1F3CB}\uFE0F', label:'Lifts',    floor:2, good:3, cap:3},
   {key:'run',      emoji:'\u{1F3C3}',       label:'Runs',     floor:2, good:5},
-  {key:'swim',     emoji:'\u{1F3CA}',       label:'Swims',    floor:1, good:2},
+  {key:'swim',     emoji:'\u{1F3CA}',       label:'Swims',    floor:2, good:3},
   {key:'fence',    emoji:'\u{1F93A}',       label:'Fence',    floor:1, good:2},
 ];
 // which tier a count sits in, plus the next number worth chasing
