@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026.08.12-10">
+<link rel="stylesheet" href="styles.css?v=2026.08.12-11">
 </head>
 <body>
 <div class="whead">
@@ -63,7 +63,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=2026.08.12-10"></script>
+<script src="app.js?v=2026.08.12-11"></script>
 <script>
   boot(async () => {
   const params = new URLSearchParams(location.search);
@@ -446,7 +446,7 @@
     sheet.classList.add('on');
   };
   fbCancel.onclick = () => sheet.classList.remove('on');
-  fbSave.onclick = () => {
+  once(fbSave, () => {
     const exercises = {};
     slots.forEach(slot => {
       const sets = exState(slot.k).sets.filter(s => s.touched && (s.w !== '' || s.r !== ''))
@@ -455,12 +455,12 @@
     });
     const note = fbNote.value.trim();
     Store.update(s => {
-      s.sessions.push({ id: Date.now(), day, date: logDate, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, readiness: draft.readiness || 'normal', joints: draft.joints || 'ok', gym: draft.gym || 'apt', ...(srpeVal ? { srpe: srpeVal } : {}), ...(durMin.value ? { minutes: +durMin.value } : {}), ...(draft.deload ? { deload: true } : {}) });
+      s.sessions.push({ id: Date.now(), day, date: logDate, exercises, feedback: { knee: kneeVal, flare: flareVal, note }, readiness: draft.readiness || 'normal', joints: draft.joints || 'ok', gym: draft.gym || 'apt', ...(srpeVal ? { srpe: srpeVal } : {}), ...(saneMinutes(durMin.value) ? { minutes: saneMinutes(durMin.value) } : {}), ...(draft.deload ? { deload: true } : {}) });
       if (flareVal && flareVal !== 'None') s.episodes.push({ id: Date.now(), date: logDate, what: flareVal, ctx: note || 'post-workout' });
       s.draft = null;
     });
     backToDay();
-  };
+  });
 
   renderDeload();
   render();

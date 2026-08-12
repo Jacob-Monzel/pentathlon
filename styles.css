@@ -449,3 +449,6 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 .rxnote{font-size:11px;color:#B45309;font-family:var(--mono);margin-top:3px}
 .c-athletic{background:#FEF6E0;border-color:#F3E2A9;color:#8A6A0B}
 
+
+/* a commit-and-navigate button that has already fired */
+button.busy{opacity:.6;pointer-events:none}

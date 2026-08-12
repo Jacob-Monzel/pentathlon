@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.12-10';
+const APP_VERSION = '2026.08.12-11';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -179,6 +179,41 @@ function netBadge() {
   if (!el) { el = document.createElement('div'); el.id = 'netbadge'; el.className = 'netbadge'; document.body.appendChild(el); }
   el.textContent = off ? 'Offline \u00b7 saved on this device' : 'Syncing\u2026';
   el.classList.toggle('warn', off);
+}
+
+// Commit-then-navigate buttons must fire exactly once. location.href is async, so
+// on a slow phone the button stays live long enough for a second tap to land — which
+// wrote a duplicate session or activity. Wrap the handler instead of trusting timing.
+// Return false from fn to release the guard — e.g. the user cancelled a confirm,
+// so nothing was committed and the button must stay usable.
+function once(btn, fn) {
+  if (!btn) return;
+  let spent = false;
+  const release = () => { spent = false; btn.disabled = false; btn.classList.remove('busy'); };
+  btn.onclick = async (...a) => {
+    if (spent) return;
+    spent = true;
+    btn.disabled = true;
+    btn.classList.add('busy');
+    let ok;
+    try { ok = await fn(...a); }
+    catch (e) { release(); throw e; }
+    if (ok === false) release();
+  };
+}
+
+// A backup file the user picked by hand. Anything wrong with its shape must be
+// rejected outright: writing a non-array into sessions breaks every page at once,
+// because everything downstream calls .filter on it.
+function validImport(d) {
+  if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
+  const keys = ['sessions','activities','episodes','weights'];
+  if (!Array.isArray(d.sessions)) return null;              // must have real sessions
+  for (const k of keys) if (k in d && !Array.isArray(d[k])) return null;
+  const out = Store.def();
+  keys.forEach(k => { if (Array.isArray(d[k])) out[k] = d[k]; });
+  out.draft = (d.draft && typeof d.draft === 'object' && !Array.isArray(d.draft)) ? d.draft : null;
+  return out;
 }
 
 const Auth = {
@@ -686,11 +721,19 @@ const SRPE_SCALE = [
 const SRPE_LABEL = v => (SRPE_SCALE.find(x => x[0] === +v) || [0,''])[1];
 
 // minutes for an activity — inferred from what's already logged where possible
+// A duration typed by a human. Rejects letters, negatives and absurd values: a
+// single bad entry otherwise poisons weekly load, monotony and strain permanently.
+const MAX_MIN = 1440;   // a day. Anything longer is a typo, not a session.
+function saneMinutes(v) {
+  const n = Math.round(+v);
+  return (isFinite(n) && n > 0 && n <= MAX_MIN) ? n : 0;
+}
 function actMinutes(a) {
   if (!a) return 0;
-  if (a.minutes) return +a.minutes;
-  if (a.time) { const s = parseTime(a.time); if (s) return Math.round(s/60); }
-  if (a.duration) return +a.duration;
+  // sanitised on read too, so entries saved before this guard existed can't skew totals
+  if (a.minutes) return saneMinutes(a.minutes);
+  if (a.time) { const s = parseTime(a.time); if (s > 0) return saneMinutes(Math.round(s/60)); }
+  if (a.duration) return saneMinutes(a.duration);
   return 0;
 }
 function sessionMinutes(s) { return s && s.minutes ? +s.minutes : 0; }

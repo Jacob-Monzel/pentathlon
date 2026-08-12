@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026.08.12-10">
+<link rel="stylesheet" href="styles.css?v=2026.08.12-11">
 </head>
 <body>
 <div class="page">
@@ -37,7 +37,7 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=2026.08.12-10"></script>
+<script src="app.js?v=2026.08.12-11"></script>
 <script>
   boot(async () => {
   const p = new URLSearchParams(location.search);
@@ -65,7 +65,7 @@
     return d && d.value ? +d.value : 0;
   }
   const syncDur = () => { if (!durMin.value) { const m = inferMinutes(); if (m) durMin.value = m; } };
-  const rateFields = () => ({ ...(srpeVal ? { srpe: srpeVal } : {}), ...(durMin.value ? { minutes: +durMin.value } : {}) });
+  const rateFields = () => ({ ...(srpeVal ? { srpe: srpeVal } : {}), ...(saneMinutes(durMin.value) ? { minutes: saneMinutes(durMin.value) } : {}) });
 
   // ---------- FENCE / NINJA : simple generic form ----------
   function renderSimple() {
@@ -77,12 +77,12 @@
       const ph = f.t === 'time' ? 'mm:ss' : '';
       return `<label class="field"><span>${f.label}</span><input type="text" inputmode="${mode}" data-k="${f.k}" value="${val}" placeholder="${ph}"></label>`;
     }).join('');
-    save.onclick = () => {
+    once(save, () => {
       syncDur();
       const a = { id: editId || undefined, type, date };
       form.querySelectorAll('[data-k]').forEach(el => a[el.dataset.k] = el.value.trim());
       saveActivity({ ...a, ...rateFields() }); backTo();
-    };
+    });
   }
 
   // ---------- RUN / SWIM : intensity + unit + mode + builder ----------
@@ -215,7 +215,7 @@
   if (isCardio) {
     renderCardio();
     if (!existing && wantTpl) { const t = TEMPLATES[type].find(x => x.id === wantTpl); if (t) loadTemplate(t); }
-    save.onclick = () => {
+    once(save, () => {
       syncDur();
       state.note = (form.querySelector('#note').value||'').trim();
       const a = { id: editId || undefined, ...state };
@@ -223,12 +223,16 @@
       if (wantSlot) a.slot = wantSlot;
       if (state.tpl && KEY_ROTATION.includes(state.tpl)) a.key = state.tpl;
       saveActivity({ ...a, ...rateFields() }); backTo();
-    };
+    });
   } else {
     renderSimple();
   }
 
-  if (editId) { del.hidden=false; del.onclick=()=>{ if(confirm('Delete this activity?')){ deleteActivity(editId); backTo(); } }; }
+  if (editId) { del.hidden = false;
+    once(del, () => {
+      if (!confirm('Delete this activity?')) return false;   // released, still tappable
+      deleteActivity(editId); backTo();
+    }); }
   });
 </script>
 </body>
