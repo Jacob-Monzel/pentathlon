@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.12-7';
+const APP_VERSION = '2026.08.12-8';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -1096,6 +1096,42 @@ function nextRun(isos) {
 //   cap   — a hard ceiling set by recovery; exceeding it is a warning (red).
 // Lifting is capped by recovery; the sport side isn't — more running is fine.
 // Edit these as conditioning changes (the running "good" should climb over time).
+// ---- weekly plan ----------------------------------------------------------
+// A dated, deliberately dumb template: which disciplines belong on which day.
+// It never compares itself against what you logged — misses aren't a thing.
+// Static by design; edit it here when the season changes. A '?' suffix marks
+// something still provisional, which renders muted.
+// When `to` passes, the Plan page says so rather than quietly going stale.
+const PLAN = {
+  from:'2026-08-12', to:'2026-12-19', label:'Fall \u00b7 Penn term',
+  days: {
+    Mon:['lift','run'],
+    Tue:['swim','fence?'],
+    Wed:['lift','run'],
+    Thu:['swim','run'],
+    Fri:['lift','run'],
+    Sat:['fence'],
+    Sun:['swim','run'],
+  },
+  notes:[
+    'Saturday is bouting \u00b7 2+ hours, so nothing else stacked on it.',
+    'Pershing Field opens 12:30 PM at weekends \u2014 Sunday swim is an afternoon.',
+    'Second fencing day is provisional until the \u00e9p\u00e9e switch is sorted.',
+  ],
+};
+const PLAN_ITEM = {
+  lift: {emoji:'\u{1F3CB}\uFE0F', label:'Lift'},
+  run:  {emoji:'\u{1F3C3}',       label:'Run'},
+  swim: {emoji:'\u{1F3CA}',       label:'Swim'},
+  fence:{emoji:'\u{1F93A}',       label:'Fence'},
+  ninja:{emoji:'\u{1F9D7}',       label:'Ninja / OCR'},
+};
+const PLAN_DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+// today's row, so the page can highlight it without recomputing the week
+const planToday = () => PLAN_DOW[(new Date().getDay()+6)%7];
+const planActive = (iso) => { const d = iso || todayISO();
+  return (!PLAN.from || d >= PLAN.from) && (!PLAN.to || d <= PLAN.to); };
+
 const GOALS = [
   {key:'lift',     emoji:'\u{1F3CB}\uFE0F', label:'Lifts',    floor:2, good:3, cap:3},
   {key:'run',      emoji:'\u{1F3C3}',       label:'Runs',     floor:2, good:5},

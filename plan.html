@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pentathlon">
+<meta name="theme-color" content="#EEF2F7">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>Pentathlon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=2026.08.12-8">
+</head>
+<body>
+<div class="page">
+  <div class="dayhead">
+    <a href="index.html" class="back">&lsaquo;</a>
+    <div class="dayttl">Plan</div>
+  </div>
+  <div id="planHead"></div>
+  <div class="plandays" id="planDays"></div>
+  <div class="plannotes" id="planNotes"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js?v=2026.08.12-8"></script>
+<script>
+  boot(async () => {
+
+  const pretty = iso => { const [y,m,d] = iso.split('-').map(Number);
+    return new Date(y, m-1, d).toLocaleString('en-US', { month:'short', day:'numeric' }); };
+
+  // header — what this plan is and how long it's good for
+  const live = planActive();
+  planHead.innerHTML =
+    `<div class="planhead${live ? '' : ' stale'}">
+       <div class="planhead-l">${PLAN.label}</div>
+       <div class="planhead-d">${pretty(PLAN.from)} \u2013 ${pretty(PLAN.to)}</div>
+       ${live ? '' : '<div class="planhead-x">This plan has run out \u2014 time to rebuild it.</div>'}
+     </div>`;
+
+  // the week. A '?' suffix means provisional, and renders muted.
+  const today = planToday();
+  planDays.innerHTML = PLAN_DOW.map(dow => {
+    const items = PLAN.days[dow] || [];
+    const chips = items.length
+      ? items.map(raw => {
+          const soft = raw.endsWith('?'), k = soft ? raw.slice(0, -1) : raw;
+          const it = PLAN_ITEM[k]; if (!it) return '';
+          return `<span class="planchip${soft ? ' soft' : ''}">${it.emoji} ${it.label}${soft ? '?' : ''}</span>`;
+        }).join('')
+      : '<span class="planrest">rest</span>';
+    return `<div class="planrow${dow === today ? ' now' : ''}">
+              <div class="pland">${dow}</div>
+              <div class="planc">${chips}</div>
+            </div>`;
+  }).join('');
+
+  planNotes.innerHTML = (PLAN.notes || []).map(n => `<div>\u00b7 ${n}</div>`).join('');
+  });
+</script>
+</body>
+</html>

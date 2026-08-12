@@ -4,13 +4,13 @@
 //            (2) make cache updates deterministic instead of iOS's guess.
 //  Bump CACHE_VERSION on every deploy — it wipes old caches on activate.
 // ============================================================
-const CACHE_VERSION = '2026.08.12-7';
+const CACHE_VERSION = '2026.08.12-8';
 const CACHE = 'pentathlon-' + CACHE_VERSION;
 
 // The app shell. Everything needed to open and log a workout with zero network.
 const SHELL = [
   './', 'index.html', 'login.html', 'day.html', 'workout.html', 'activity.html',
-  'progress.html', 'episodes.html', 'data.html',
+  'progress.html', 'episodes.html', 'data.html', 'plan.html',
   'app.js', 'config.js', 'styles.css', 'manifest.json',
   'icon-180.png', 'icon-192.png', 'icon-512.png',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',

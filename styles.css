@@ -337,6 +337,27 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
   color:var(--text);font-weight:600;font-size:14px;box-shadow:var(--shadow);text-align:left}
 .addsports button:active{border-color:var(--accent);background:var(--accent-soft)}
 
+/* weekly plan — a static seasonal template, not a scorecard */
+.planhead{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:14px 16px;box-shadow:var(--shadow)}
+.planhead.stale{border-color:#F3C6CF}
+.planhead-l{font-weight:700;font-size:15px}
+.planhead-d{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:3px}
+.planhead-x{font-family:var(--mono);font-size:11.5px;color:var(--red);margin-top:7px}
+.plandays{display:flex;flex-direction:column;gap:8px}
+.planrow{display:flex;align-items:center;gap:12px;background:var(--surface);
+  border:1px solid var(--line);border-radius:13px;padding:13px 15px;box-shadow:var(--shadow)}
+.planrow.now{border-color:var(--accent);background:var(--accent-soft)}
+.pland{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.06em;flex:0 0 38px}
+.planrow.now .pland{color:var(--accent)}
+.planc{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
+.planchip{font-size:12.5px;font-weight:600;background:var(--surface2);border:1px solid var(--line);
+  border-radius:20px;padding:5px 11px;white-space:nowrap}
+.planchip.soft{opacity:.55;font-style:italic}
+.planrest{font-size:12px;color:var(--faint);font-style:italic}
+.plannotes{font-family:var(--mono);font-size:11.5px;color:var(--muted);line-height:1.7;padding:0 4px}
+
 /* activity form */
 /* disclosure for the full session builder — collapsed by default on swims */
 .detailtog{width:100%;padding:12px;border-radius:12px;border:1px dashed var(--line);
