@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=2026.08.12-1">
 </head>
 <body>
 <div class="page">
@@ -31,21 +31,21 @@
   <div id="logged"></div>
 
   <div class="section-label">Add to this day</div>
-  <div class="addlift">
-    <button class="primary" id="startLift"></button>
+  <div class="picker">
+    <div class="picklabel"><span>Lift</span><em id="liftHint"></em></div>
     <div class="wpick" id="liftpick">
-      <button data-w="w1">1</button><button data-w="w2">2</button><button data-w="w3">3</button>
+      <button data-w="w1">W1</button><button data-w="w2">W2</button><button data-w="w3">W3</button>
     </div>
   </div>
-  <div class="addlift runrow">
-    <button class="primary" id="startRun"></button>
+  <div class="picker runrow">
+    <div class="picklabel"><span>Run</span><em id="runHint"></em></div>
     <div class="wpick" id="runpick"></div>
   </div>
   <div class="addsports" id="addsports"></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=202608110219"></script>
+<script src="app.js?v=2026.08.12-1"></script>
 <script>
   boot(async () => {
   const date = new URLSearchParams(location.search).get('date') || todayISO();
@@ -97,26 +97,27 @@
          <span class="resume-caret">›</span></a>`;
   }
 
-  // add lift — suggested next in rotation, overridable
+  // add lift — the suggested workout is the highlighted chip; the hint names it
   const sugg = nextWorkout();
-  startLift.innerHTML = `Start ${PROGRAM[sugg].label} <span class="sugg-tag">suggested</span>`;
-  startLift.onclick = () => location.href = `workout.html?day=${sugg}&date=${date}`;
+  liftHint.textContent = `${PROGRAM[sugg].label} next \u00b7 ${PROGRAM[sugg].focus}`;
   document.querySelectorAll('#liftpick button').forEach(b => {
     if (b.dataset.w === sugg) b.classList.add('on');
+    b.title = PROGRAM[b.dataset.w].label + ' \u2014 ' + PROGRAM[b.dataset.w].focus;
     b.onclick = () => location.href = `workout.html?day=${b.dataset.w}&date=${date}`;
   });
 
-  // add run — highest-priority unfilled slot this week, overridable
+  // add run — highest-priority unfilled slot this week is highlighted, any is tappable
   {
     const isos = weekDays(0).map(d => d.iso);
     const nr = nextRun(isos);
-    startRun.innerHTML = `Start ${nr.label} <span class="sugg-tag">${nr.range}</span>`;
-    startRun.onclick = () => location.href =
-      `activity.html?type=run&date=${date}&tpl=${nr.tpl}&slot=${nr.slot.k}`;
+    runHint.textContent = `${nr.label} next \u00b7 ${nr.range}`;
+    let keyN = 0;
     runpick.innerHTML = RUN_SLOTS.map(sl => {
       const tpl = sl.rotates ? nextKeyRun() : sl.tpl;
-      const short = sl.rotates ? '\u26a1' : sl.label.replace('Easy + strides','Str').replace('Long easy','Long').replace('Shakeout jog','Shake').replace('Easy','Easy');
-      return `<button data-tpl="${tpl}" data-slot="${sl.k}" class="${sl.k===nr.slot.k?'on':''}" title="${sl.label}">${short}</button>`;
+      // the two key slots share a template, so number them — otherwise they're identical chips
+      const short = sl.rotates ? (++keyN === 1 ? '\u26a1' : '\u26a1\u00b2')
+        : sl.label.replace('Easy + strides','Str').replace('Long easy','Long').replace('Shakeout jog','Shake');
+      return `<button data-tpl="${tpl}" data-slot="${sl.k}" class="${sl.k===nr.slot.k?'on':''}" title="${sl.label} \u00b7 ${sl.min}\u2013${sl.max} min">${short}</button>`;
     }).join('');
     runpick.querySelectorAll('button').forEach(b => b.onclick = () =>
       location.href = `activity.html?type=run&date=${date}&tpl=${b.dataset.tpl}&slot=${b.dataset.slot}`);

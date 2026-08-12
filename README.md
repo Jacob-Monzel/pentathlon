@@ -208,11 +208,41 @@ change, debounced upsert. First login on a device with local data seeds the clou
 
 ## 7. Deploy / update workflow
 
+### Bump the version on EVERY deploy
+
+The version string is `YYYY.MM.DD-N` (N restarts at 1 each day) and it lives in four
+places that must always match:
+
+| Where | What it does |
+|---|---|
+| `app.js` → `APP_VERSION` | what **Backup → Version** reports on the device |
+| `sw.js` → `CACHE_VERSION` | wipes old service-worker caches on activate |
+| every `*.html` → `app.js?v=` | busts the HTTP cache for the code |
+| every `*.html` → `styles.css?v=` | busts the HTTP cache for the styles |
+
+Don't edit these by hand — they drift, and a cached `app.js` running against fresh HTML
+is exactly what produced the "undefined chips" bug. Use the script:
+
+```sh
+./bump.sh              # auto: today's date, next -N
+./bump.sh 2026.08.12-3 # explicit
+./bump.sh --check      # verify only, exits 1 on drift
+```
+
+Bumping is what makes stress testing trustworthy: open **Backup → Version** on the
+phone and you know, with no guessing, whether the build you're testing is the build
+you just shipped. If the number is old, hit **Force reload latest version** there.
+
+### Steps
+
 1. Edit files locally.
 2. Sanity check JS: `node --check app.js` (and extract each page's inline script if changed).
-3. Upload changed files to the repo root (GitHub web: Add file → Upload files → drag
-   the **files**, not a folder) → commit.
-4. Wait ~1 min for Pages; **hard-refresh** (or private window) to beat the cache.
+3. `./bump.sh` — then `./bump.sh --check` should print ✓.
+4. Upload changed files to the repo root — **including `sw.js` and all `*.html`**, since
+   bump.sh touches every page (GitHub web: Add file → Upload files → drag the **files**,
+   not a folder) → commit.
+5. Wait ~1 min for Pages; **hard-refresh** (or private window) to beat the cache.
+6. Confirm **Backup → Version** shows the number you just set.
 
 Run locally: from the folder, `python3 -m http.server 8000` →
 `http://localhost:8000/login.html`. (Opening via `file://` breaks Supabase auth's
