@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026.08.12-6">
+<link rel="stylesheet" href="styles.css?v=2026.08.12-7">
 </head>
 <body>
 <div class="page">
@@ -37,7 +37,7 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="app.js?v=2026.08.12-6"></script>
+<script src="app.js?v=2026.08.12-7"></script>
 <script>
   boot(async () => {
   const p = new URLSearchParams(location.search);
@@ -96,6 +96,13 @@
   const kinds = SEG_KINDS[type];
   const perLabel = type === 'run' ? '/' + state.unit : '/100';
 
+  // A swim during the foundation block is just minutes + RPE + a note. The full
+  // session builder still exists — it's one tap away, and it opens automatically
+  // when editing an entry that already has distance, splits or a template.
+  const simple = type === 'swim';
+  let showDetail = !simple || !!(state.distance || state.time || state.tpl ||
+                                 (state.segments && state.segments.length));
+
   function segPace(s) {
     const sec = parseTime(s.time), d = +s.distance || 0;
     if (!sec || !d) return '';
@@ -104,6 +111,8 @@
 
   function renderCardio() {
     form.innerHTML = `
+      ${simple ? `<button class="detailtog${showDetail?' on':''}" id="detailTog">${showDetail?'\u2212 Hide session details':'+ Add distance, splits or a template'}</button>` : ''}
+      <div id="detailBox"${simple && !showDetail ? ' hidden' : ''}>
       <div class="field"><span>Suggested sessions</span>
         <div class="tpls" id="tpls">${TEMPLATES[type].map(t=>`<button data-t="${t.id}" title="${t.desc}">${t.label}</button>`).join('')}</div></div>
       <div class="field"><span>Intensity</span>
@@ -126,7 +135,11 @@
         <button class="addset-btn" id="addSeg">+ add set</button>
         <div class="segtotal" id="segTotal"></div>
       </div>
+      </div>
       <label class="field"><span>Note</span><input type="text" id="note" value="${state.note||''}" placeholder="anything worth remembering"></label>`;
+
+    const dt = form.querySelector('#detailTog');
+    if (dt) dt.onclick = () => { showDetail = !showDetail; renderCardio(); };
 
     // template picker — load a full session, keep any note already typed
     form.querySelector('#tpls').onclick = e => { const b=e.target.closest('button'); if(!b) return;

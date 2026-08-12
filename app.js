@@ -5,7 +5,7 @@
 
 // Bump on every app.js change; shown on the Backup page so you can confirm
 // which build a device is actually running (iOS caches HTML aggressively).
-const APP_VERSION = '2026.08.12-6';
+const APP_VERSION = '2026.08.12-7';
 
 // Register the service worker (offline support + deterministic cache updates).
 // Fails silently on unsupported/insecure contexts — the app works either way.
@@ -945,8 +945,10 @@ function activitySummary(a){
     if(a.mode==='struct'){ const n=(a.segments||[]).length; return `${actTotals(a).dist} ${u} \u00b7 ${n} set${n===1?'':'s'}${tag}`; }
     const sec=parseTime(a.time), d=+a.distance||0;
     // minutes-only entry (a lesson, a technique swim) — don't render it as "0 yd · —"
+    // no intensity tag here — on a minutes-only entry it's an untouched default,
+    // not something the athlete actually chose
     if(!d && !sec){ const m=actMinutes(a);
-      return m ? `${m} min${a.srpe?` \u00b7 RPE ${a.srpe}`:''}${tag}` : `\u2014${tag}`; }
+      return m ? `${m} min${a.srpe?` \u00b7 RPE ${a.srpe}`:''}` : '\u2014'; }
     const pace = a.type==='run' ? ((d&&sec)?` \u00b7 ${fmtDur(sec/d)}/${u}`:'') : ((d&&sec)?` \u00b7 ${fmtDur(sec/(d/100))}/100`:'');
     return `${d} ${u} \u00b7 ${a.time||'\u2014'}${pace}${tag}`;
   }
