@@ -281,19 +281,19 @@
       const swapMenu = `<div class="swapmenu" id="sm-${idx}" hidden>` +
         opts.map(o => `<button data-idx="${idx}" data-k="${o.k}" data-n="${o.n}">${o.k===slot.baseK?'★ ':''}${o.n}</button>`).join('') + `</div>`;
       // tier heading before the first exercise of each tier
-      const tier = slotPriority(slot);
-      if (draft.deload && tier > DELOAD.tierCap) return;
-      if (tier !== lastTier) {
+      // NB: named `pri`, not `tier` — `tier()` above is the readiness helper
+      const pri = slotPriority(slot);
+      if (draft.deload && pri > DELOAD.tierCap) return;   // deload: tier 1 only
+      if (pri !== lastTier) {
         const h = document.createElement('div');
-        h.className = 'tierhead' + (tier === 3 ? ' t3' : '');
+        h.className = 'tierhead' + (pri === 3 ? ' t3' : '');
         const names = {1:'Core \u00b7 always', 2:'Support', 3:'Extras \u00b7 superset these'};
-        h.innerHTML = `<span>${names[tier]}</span>` +
-          (tier === 3 ? `<button class="t3toggle" id="t3btn">${t3open ? 'hide' : 'show'}</button>` : '');
+        h.innerHTML = `<span>${names[pri]}</span>` +
+          (pri === 3 ? `<button class="t3toggle" id="t3btn">${t3open ? 'hide' : 'show'}</button>` : '');
         wlist.appendChild(h);
-        lastTier = tier;
+        lastTier = pri;
       }
-      if (draft.deload && tier > DELOAD.tierCap) return;   // deload: tier 1 only
-      if (tier === 3 && !t3open) return;   // collapsed by default — keeps the list short
+      if (pri === 3 && !t3open) return;   // collapsed by default — keeps the list short
       const card = document.createElement('div');
       card.className = 'exc' + (optional ? ' optional' : '');
       card.innerHTML =
